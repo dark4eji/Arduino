@@ -10,7 +10,6 @@
 #include "nRF24L01.h"
 #include "RF24.h"
 
-
 RF24 radio(2,4);
 
 WidgetLED led0(V0);  //Создание класса для светодиода
@@ -25,10 +24,10 @@ byte pinCheck = 0;  //Хранит 0 или 1 как сигнал с кнопк�
 
 int wSensorData;  //Хранит сырые данные с сенсора
 int notifyCheck;
+boolean state = false;
 
 void setup(){
-  Serial.begin(9600); //открываем порт для связи с ПК
-
+  Serial.begin(9600); //открываем порт для связи с ПК 
   Blynk.begin(auth, ssid, pass);  
 
   radio.begin(); //активировать модуль
@@ -52,10 +51,12 @@ void setup(){
 void loop() { 
   Blynk.run();
   Blynk.virtualWrite(V2, wSensorData);  //Отправка данных на шкалу в Blynk
-  if (isCompressorActive != 1) {
-    notifySystem();
+    
+   if (wSensorData <= HIGH_WATER && isCompressorActive == 1 && wSensorData != 0) {
+    Blynk.virtualWrite(V1, "offLabel");    
+    pinCheck = 0;    
   }
-  operateCompressorS();
+    
   operateLed();  
   processTXData(); 
   processRXData();
@@ -77,15 +78,6 @@ void processRXData(){
   radio.startListening();
   if (radio.available()) {
         radio.read(&wSensorData, sizeof(wSensorData));
-  }
-}
-
-//--------------------------------------
-//Отключение реле при достижении определенного уровня воды
-void operateCompressorS() {
-  if (wSensorData <= HIGH_WATER && isCompressorActive == 1) {
-    Blynk.virtualWrite(V1, "offLabel");    
-    pinCheck = 0;    
   }
 }
 
