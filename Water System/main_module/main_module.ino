@@ -1,7 +1,5 @@
 #define BLYNK_PRINT Serial
-#define LOW_WATER 5
-#define MEDIUM_WATER 10
-#define HIGH_WATER 20
+#define TANK_HEIGHT 165
 
 #include <ESP8266WiFi.h>
 #include <BlynkSimpleEsp8266.h>
@@ -13,18 +11,21 @@
 RF24 radio(2,4);
 
 WidgetLED led0(V0);  //Создание класса для светодиода
+WidgetLED led3(V3);
+WidgetLED led4(V4);
 
 char auth[] = "3e883JyisvmmRpfE9RrWlw_Qoa-B0vCX";
-char ssid[] = "TP-LINK_E196";
-char pass[] = "5bLf7678a4_V1a";
+char ssid[] = "RT-WiFi_95B8";
+char pass[] = "9edt3JgT";
 
 byte address[][6] = {"1Node", "2Node", "3Node", "4Node", "5Node", "6Node"};  //1Node - главный модуль; 2Node - модуль реле; 3Node - модуль сенсора воды
+
 byte isCompressorActive = 0;  //Хранит 0 или 1 как состояние компрессора
 byte pinCheck = 0;  //Хранит 0 или 1 как сигнал с кнопки Blynk
 
+
 int wSensorData;  //Хранит сырые данные с сенсора
-int notifyCheck;
-boolean state = false;
+
 
 void setup(){
   Serial.begin(9600); //открываем порт для связи с ПК 
@@ -35,7 +36,7 @@ void setup(){
   radio.setRetries(0, 15);    //(время между попыткой достучаться, число попыток)
   radio.enableAckPayload();    //разрешить отсылку данных в ответ на входящий сигнал
   radio.setPayloadSize(32);     //размер пакета, в байтах
-
+  radio.setChannel(0x6b);
   radio.openWritingPipe(address[0]);   //мы - труба 0, открываем канал для передачи данных
   radio.openReadingPipe(1, address[2]);
 
@@ -50,14 +51,15 @@ void setup(){
 
 void loop() { 
   Blynk.run();
-  Blynk.virtualWrite(V2, wSensorData);  //Отправка данных на шкалу в Blynk
+  int waterLevel = TANK_HEIGHT - wSensorData;
+  Blynk.virtualWrite(V2, waterLevel);  //Отправка данных на шкалу в Blynk
+  Serial.println(wSensorData);
+  Serial.println(waterLevel);
     
-   if (wSensorData <= HIGH_WATER && isCompressorActive == 1 && wSensorData != 0) {
+  if (waterLevel >= 130 && isCompressorActive == 1 && wSensorData != 0) {
     Blynk.virtualWrite(V1, "offLabel");    
     pinCheck = 0;    
-  }
-    
-  operateLed();  
+  }  
   processTXData(); 
   processRXData();
 }
@@ -65,20 +67,21 @@ void loop() {
 //--------------------------------------
 //Отправка управляющего сигнала на реле
 void processTXData() {
-  if (isCompressorActive != pinCheck) {     
+  if (isCompressorActive != pinCheck) {             
       radio.stopListening();
       isCompressorActive = pinCheck;         
       Serial.println(isCompressorActive);  
-      radio.write(&isCompressorActive, sizeof(isCompressorActive));       
-  }  
+      radio.write(&isCompressorActive, sizeof(isCompressorActive));
+  }     
 }
 //--------------------------------------
 //Прием сырых данных уровня воды
-void processRXData(){
+void processRXData(){  
   radio.startListening();
-  if (radio.available()) {
-        radio.read(&wSensorData, sizeof(wSensorData));
-  }
+    if (radio.available()) {
+       radio.read(&wSensorData, sizeof(wSensorData));      
+    }
+  Serial.println(wSensorData);     
 }
 
 //--------------------------------------
@@ -87,14 +90,9 @@ void processRXData(){
 //Бинд кнопки включения реле
 BLYNK_WRITE(V1) {
   pinCheck = param.asInt();
-}
-
-//--------------------------------------
-//Управление светодиодом в Blynk
-void operateLed() {
     if (pinCheck == 1) {
       led0.on();
     } else {
       led0.off();
-    }
+    } 
 }

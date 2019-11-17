@@ -4,8 +4,7 @@
 #include "nRF24L01.h"
 #include "RF24.h"
 
-RF24 radio(9,10); // "создать" модуль на пинах 9 и 10 Для Уно
-//RF24 radio(9,53); // для Меги
+RF24 radio(9,10);
 
 byte address[][6] = {"1Node", "2Node", "3Node", "4Node", "5Node", "6Node"};
 
@@ -24,6 +23,7 @@ void setup(){
   radio.setRetries(0,15);     //(время между попыткой достучаться, число попыток)
   radio.enableAckPayload();    //разрешить отсылку данных в ответ на входящий сигнал
   radio.setPayloadSize(32);     //размер пакета, в байтах
+  radio.setChannel(0x6b);
 
   radio.openReadingPipe(1, address[0]);      //хотим слушать трубу 0
  
@@ -38,7 +38,8 @@ void setup(){
 
 void loop() {  
   processData();
-  manageRelay();    
+  manageRelay();
+  Serial.println(stateCheck);    
 }
 
 void manageRelay() {
@@ -52,7 +53,6 @@ void manageRelay() {
 
 void processData() {     
   if (radio.available()) {    
-    radio.read(&stateCheck, sizeof(stateCheck));   
-  }      
-   
+    radio.read(&stateCheck, sizeof(stateCheck));     
+  }         
 }
