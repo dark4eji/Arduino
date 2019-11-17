@@ -7,9 +7,6 @@
 
 RF24 radio(9,10);
 
-//int sensorTime = 2;
-//int sensorMsTime = 2 * 1000;
-
 int clockTime = 0;
 
 int start = 0;
@@ -17,11 +14,11 @@ int start = 0;
 int arithmetic[10];
 int preciseArithmetic[10];
 
-int sensorData;
+int rawData;
 int clearData;
 
-int percentagePos;
-int percentageNeg;
+int lesserValue;
+int higherValue;
 
 byte address[][6] = {"1Node", "2Node", "3Node", "4Node", "5Node", "6Node"};
 void setup(){
@@ -52,26 +49,24 @@ void loop() {
       start = 1;
     } else {     
       if (clockTime <= 10) {
-        sensorData = processSensor();
-        setGeneralPercValues(sensorData);      
-        if (sensorData <= percentagePos && sensorData >= percentageNeg) {
-          clearData = sensorData;
+        rawData = processSensor();
+        setStraightData(rawData);      
+        if (rawData <= higherValue && rawData >= lesserValue) {
+          clearData = rawData;
           arithmetic[clockTime] = sensorData;
           clockTime++; 
         }           
-      } else if (clockTime == 11) {
-        int dataToSend = returnMeasures(arithmetic);
+      } else if (clockTime == 11) {       
         Serial.println(dataToSend);    
-        processData(dataToSend);      
+        processData(returnMeasures(arithmetic));      
         clockTime = 0;       
       }      
     } 
     delay(200);  
 }
 
-void processData(int data) {
-   int sensData = data;            
-   radio.write(&data, sizeof(data));   
+void processData(int dataToSend) {            
+   radio.write(&dataToSend, sizeof(dataToSend));   
 }
 
 void calibrateSensor() {
@@ -96,7 +91,6 @@ int processSensor() {
   // Выведем значение в Serial Monitor
 }
 
-
 int returnMeasures(int arith[]) {
   int sum = 0;
   for (int i = 0; i <= 9; i++) {
@@ -105,27 +99,32 @@ int returnMeasures(int arith[]) {
   return sum * 0.1;
 }
 
-int getPercentageValue(float coeff, int sign) {
-    int value;
-    if (sign == 0) {
-      value = clearData - (clearData * coeff);
-    } else {
-      value = clearData + (clearData * coeff);
-    }
-    return value;
+void setStraightData(int rawData){
+   higherValue = clearData + 1;
+   lesserValue = clearData - 1;   
 }
 
-void setPercVars(float coeffPos, float coeffNeg) {
-   percentagePos = getPercentageValue(coeffPos, 1);
-   percentageNeg = getPercentageValue(coeffNeg, 0);
-}
-
-void setGeneralPercValues(int sensorData) {    
-    if ((sensorData >= 10) && (sensorData <= 50)) {
-      setPercVars(0.10, 0.10);       
-  } else if ((sensorData >= 51) && (sensorData <= 80)) {
-      setPercVars(0.05, 0.02);
-  } else if ((sensorData >= 81) && (sensorData <= 180)) {
-      setPercVars(0.03, 0.02);
-  }
-}
+//int getPercentageValue(float coeff, int sign) {
+//    int value;
+//    if (sign == 0) {
+//      value = clearData - (clearData * coeff);
+//    } else {
+//      value = clearData + (clearData * coeff);
+//    }
+//    return value;
+//}
+//
+//void setPercVars(float coeffPos, float coeffNeg) {
+//   percentagePos = getPercentageValue(coeffPos, 1);
+//   percentageNeg = getPercentageValue(coeffNeg, 0);
+//}
+//
+//void setGeneralPercValues(int sensorData) {    
+//    if ((sensorData >= 10) && (sensorData <= 50)) {
+//      setPercVars(0.10, 0.10);       
+//  } else if ((sensorData >= 51) && (sensorData <= 80)) {
+//      setPercVars(0.05, 0.02);
+//  } else if ((sensorData >= 81) && (sensorData <= 180)) {
+//      setPercVars(0.03, 0.02);
+//  }
+//}
