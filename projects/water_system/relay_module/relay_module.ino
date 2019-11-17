@@ -1,23 +1,29 @@
-#define RELAY 5
+#define F_CPU 8000000L
+
+#define LED 3
+#define RELAY 7
+#define CE 9
+#define CSN 10
 
 #include <SPI.h>
 #include "nRF24L01.h"
 #include "RF24.h"
 
-RF24 radio(9,10);
+RF24 radio(CE, CSN);
 
 byte address[][6] = {"1Node", "2Node", "3Node", "4Node", "5Node", "6Node"};
 
 byte isCompressorActive = 0;
 
-byte stateCheck = 0;
-
 void setup(){
   Serial.begin(9600); //открываем порт для связи с ПК
-
-  pinMode(RELAY, OUTPUT);
-  digitalWrite(RELAY, LOW);
   
+  pinMode(RELAY, OUTPUT);
+  pinMode(LED, OUTPUT);
+  
+  digitalWrite(RELAY, LOW);
+  digitalWrite(LED, HIGH);
+   
   radio.begin(); //активировать модуль
   radio.setAutoAck(1);         //режим подтверждения приёма, 1 вкл 0 выкл
   radio.setRetries(0,15);     //(время между попыткой достучаться, число попыток)
@@ -39,20 +45,22 @@ void setup(){
 void loop() {  
   processData();
   manageRelay();
-  Serial.println(stateCheck);    
+  Serial.println(isCompressorActive);    
 }
 
 void manageRelay() {
-  Serial.println(stateCheck);
-  if (stateCheck == 1) {       
+  Serial.println(isCompressorActive);
+  if (isCompressorActive == 1) {       
     digitalWrite(RELAY, HIGH);
-  } else {
+    digitalWrite(LED, LOW);   
+ } else {
     digitalWrite(RELAY, LOW);
+    digitalWrite(LED, HIGH); 
   }
 }
 
 void processData() {     
   if (radio.available()) {    
-    radio.read(&stateCheck, sizeof(stateCheck));     
+    radio.read(&isCompressorActive, sizeof(isCompressorActive));     
   }         
 }

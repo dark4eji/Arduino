@@ -1,0 +1,4 @@
+https://mcudude.github.io/MiniCore/package_MCUdude_MiniCore_index.json -- for Atmega8 and etc.
+https://raw.githubusercontent.com/damellis/attiny/ide-1.6.x-boards-manager/package_damellis_attiny_index.json -- for Attiny's (25+)
+
+https://forum.arduino.cc/index.php?topic=421081.0 -- all about nRF24 (robin24)

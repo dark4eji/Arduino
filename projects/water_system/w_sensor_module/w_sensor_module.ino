@@ -105,18 +105,6 @@ int returnMeasures(int arith[]) {
   return sum * 0.1;
 }
 
-//int processSensorData(int value) {
-//for (int i = 0; i <= 9; i++) {
-//    for (int b = 0; b <= 9; b++) {               
-//       arithmetic[b] = value;
-//       delay(20);                            
-//    }          
-//    preciseArithmetic[i] = returnMeasures(arithmetic);
-//    delay(20);
-//  }
-//  return returnMeasures(preciseArithmetic);   
-//}  
-
 int getPercentageValue(float coeff, int sign) {
     int value;
     if (sign == 0) {
