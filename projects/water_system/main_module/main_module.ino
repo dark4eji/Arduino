@@ -1,5 +1,8 @@
 #define BLYNK_PRINT Serial
 #define TANK_HEIGHT 165
+#define FULL 138
+#define MIDDLE 82
+#define LITTLE 41
 
 #include <ESP8266WiFi.h>
 #include <BlynkSimpleEsp8266.h>
@@ -11,8 +14,6 @@
 RF24 radio(2,4);
 
 WidgetLED led0(V0);  //Создание класса для светодиода
-WidgetLED led3(V3);
-WidgetLED led4(V4);
 
 char auth[] = "3e883JyisvmmRpfE9RrWlw_Qoa-B0vCX";
 char ssid[] = "RT-WiFi_95B8";
@@ -23,11 +24,17 @@ byte address[][6] = {"1Node", "2Node", "3Node", "4Node", "5Node", "6Node"};  //1
 byte isCompressorActive = 0;  //Хранит 0 или 1 как состояние компрессора
 byte pinCheck = 0;  //Хранит 0 или 1 как сигнал с кнопки Blynk
 
-
 int wSensorData;  //Хранит сырые данные с сенсора
 
+struct SFlags {
+  byte full;
+  byte half;
+  byte low;
+};
 
-void setup(){
+SFlags flags = {0, 0, 0};
+
+void setup(){  
   Serial.begin(9600); //открываем порт для связи с ПК 
   Blynk.begin(auth, ssid, pass);  
 
@@ -52,11 +59,16 @@ void setup(){
 void loop() { 
   Blynk.run();
   int waterLevel = TANK_HEIGHT - wSensorData;
+  
+  notifyLevel(waterLevel);
+  setScaleLabel(waterLevel);
+  
   Blynk.virtualWrite(V2, waterLevel);  //Отправка данных на шкалу в Blynk
+  
   Serial.println(wSensorData);
   Serial.println(waterLevel);
     
-  if (waterLevel >= 130 && isCompressorActive == 1 && wSensorData != 0) {
+  if (waterLevel >= FULL && isCompressorActive == 1 && wSensorData != 0) {
     Blynk.virtualWrite(V1, "offLabel");    
     pinCheck = 0;    
   }  
@@ -82,6 +94,73 @@ void processRXData(){
        radio.read(&wSensorData, sizeof(wSensorData));      
     }
   Serial.println(wSensorData);     
+}
+
+//--------------------------------------
+void notifyLevel(int waterLevel) {  
+  if (waterLevel >= FULL && flags.full != 1) {
+    flags.full = 1;
+    Blynk.notify("!ВОДА! -- Бак полон");   
+  } else if (waterLevel == (FULL - 4)) {
+    flags.full = 0;    
+  }
+
+  if (waterLevel == MIDDLE && flags.half != 1) {
+    flags.half = 1;
+    Blynk.notify("!ВОДА! -- Пол бака");        
+  } else if (waterLevel == (MIDDLE - 4)) {
+    flags.half = 0;   
+  } else if ((waterLevel == (MIDDLE + 4)) && (flags.half == 1)) {
+    flags.half = 0;
+  }
+
+   if ((waterLevel == LITTLE) && (flags.low != 1)) {
+    flags.low = 1;
+    Blynk.notify("!ВОДА! -- !НИЗКИЙ УРОВЕНЬ ВОДЫ!");   
+  } else if ((waterLevel == (LITTLE + 4)) && (flags.low == 1)) {
+    flags.low = 0;
+  } 
+}
+
+//--------------------------------------
+void setScaleLabel(int waterLevel) {
+  float scale = 9;
+  switch(waterLevel){    
+    case 138:
+       scale = 9;
+    case 129:
+       scale = 8.5;
+    case 124:
+       scale = 8;
+    case 116:
+       scale = 7.5;
+    case 110:
+       scale = 7;
+    case 102:
+       scale = 6.5;
+    case 97:
+       scale = 6;
+    case 89:
+       scale = 5.5;
+    case 82:
+       scale = 5;
+    case 75:
+       scale = 4.5;
+    case 70:
+       scale = 4;
+    case 61:
+       scale = 3.5;
+    case 56:
+       scale = 3;
+    case 47:
+       scale = 2.5;
+    case 42:
+       scale = 2;
+    default:
+       scale = scale;     
+  }
+  
+  Blynk.virtualWrite(V3, scale);   
 }
 
 //--------------------------------------
