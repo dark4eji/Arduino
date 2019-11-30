@@ -53,12 +53,13 @@ void loop() {
         setStraightData(rawData);      
         if (rawData <= higherValue && rawData >= lesserValue) {
           clearData = rawData;
-          arithmetic[clockTime] = sensorData;
+          arithmetic[clockTime] = rawData;
           clockTime++; 
         }           
-      } else if (clockTime == 11) {       
-        Serial.println(dataToSend);    
-        processData(returnMeasures(arithmetic));      
+      } else if (clockTime == 11) {
+        int finalValue = returnMeasures(arithmetic);  
+        Serial.println(finalValue);    
+        processData(finalValue);      
         clockTime = 0;       
       }      
     } 

@@ -1,6 +1,3 @@
-#define F_CPU 8000000L
-
-#define LED 3
 #define RELAY 7
 #define CE 9
 #define CSN 10
@@ -18,12 +15,9 @@ byte isCompressorActive = 0;
 void setup(){
   Serial.begin(9600); //открываем порт для связи с ПК
   
-  pinMode(RELAY, OUTPUT);
-  pinMode(LED, OUTPUT);
-  
+  pinMode(RELAY, OUTPUT);  
   digitalWrite(RELAY, LOW);
-  digitalWrite(LED, HIGH);
-   
+     
   radio.begin(); //активировать модуль
   radio.setAutoAck(1);         //режим подтверждения приёма, 1 вкл 0 выкл
   radio.setRetries(0,15);     //(время между попыткой достучаться, число попыток)
@@ -51,11 +45,9 @@ void loop() {
 void manageRelay() {
   Serial.println(isCompressorActive);
   if (isCompressorActive == 1) {       
-    digitalWrite(RELAY, HIGH);
-    digitalWrite(LED, LOW);   
+    digitalWrite(RELAY, HIGH);     
  } else {
-    digitalWrite(RELAY, LOW);
-    digitalWrite(LED, HIGH); 
+    digitalWrite(RELAY, LOW);  
   }
 }
 
