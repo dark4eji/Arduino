@@ -3,40 +3,43 @@
 #define FULL 130
 #define MIDDLE 82
 #define LITTLE 41
+#define BUTTON D4
 
 #include <Wire.h> 
 #include <LiquidCrystal_I2C.h>
-
 #include <ESP8266WiFi.h>
 #include <BlynkSimpleEsp8266.h>
-
 #include <SPI.h>
 #include "nRF24L01.h"
 #include "RF24.h"
 
 RF24 radio(D3, D0);
-
 WidgetLED led0(V0);  //Создание класса для светодиода
 
 char auth[] = "3e883JyisvmmRpfE9RrWlw_Qoa-B0vCX";
-char ssid[] = "RT-WiFi_95B8";
-char pass[] = "9edt3JgT";
-
-char buffer[20];
+char ssid[] = "TP-LINK_E196";
+char pass[] = "5bLf7678a4_V1a";
 
 byte address[][6] = {"1Node", "2Node", "3Node", "4Node", "5Node", "6Node"};  //1Node - главный модуль; 2Node - модуль реле; 3Node - модуль сенсора воды
 
-byte isCompressorActive = 0;  //Хранит 0 или 1 как состояние компрессора
-byte pinCheck = 0;  //Хранит 0 или 1 как сигнал с кнопки Blynk
+byte isCompressorActive = 0;  //Хранит 0 или 1 как состояние компрессора; зависит от pinCheck
+byte pinCheck = 0;  //Хранит 0 или 1 как сигнал с кнопки Blynk или обычной кнопки
 
 int wSensorData;  //Хранит сырые данные с сенсора
-
+int waterLevel;
 float scale = 0;
+
+unsigned long timer1;
+unsigned long timer2;
+unsigned long timer3;
+unsigned long timer4;
+
+int period = 120000;
 
 struct SFlags {
   byte full;
   byte half;
-  byte low;
+  byte low; 
   byte clearFlag;
 };
 
@@ -45,63 +48,52 @@ SFlags flags = {0, 0, 0, 0};
 LiquidCrystal_I2C lcd(0x26, 20, 4);
 
 void setup(){ 
-  lcd.init();
-  // включаем подсветку
-  lcd.backlight();
-  // устанавливаем курсор в колонку 0, строку 0
-  lcd.setCursor(0, 0);
-  // печатаем первую строку
-  lcd.print("Starting...");  
-       
+  initDisplay();       
   Serial.begin(9600); //открываем порт для связи с ПК    
   Blynk.begin(auth, ssid, pass);  
   setupRadio();
-   
+  timer1 = millis();
+  timer2 = millis(); 
+  timer3 = millis();
+  timer4 = millis();     
 }
 
-void loop() {   
+void loop() { 
+  waterLevel = TANK_HEIGHT - wSensorData;  
   Blynk.run();  
-  int waterLevel = TANK_HEIGHT - wSensorData;  
-  notifyLevel(waterLevel);  
-  Blynk.virtualWrite(V3, scale); 
-  Blynk.virtualWrite(V2, waterLevel);  //Отправка данных на шкалу в Blynk
- 
-  lcd.setCursor(0, 0);
-  lcd.print(String("Water level: ") + String(waterLevel));
   
-  Serial.println(String(waterLevel));
-  
-  lcd.setCursor(0, 1);
-  lcd.print(String("Scale level: ") + String(scale));  
-  
-  String compr;
-  if (isCompressorActive == 0) {
-    flags.clearFlag = 0;    
-    compr = "Off";
-  } else if ((flags.clearFlag == 0) && (isCompressorActive == 1)) {
-    flags.clearFlag = 1;
-    lcd.clear();   
-    compr = "On";    
+  if (isCompressorActive == 1) {
+     period = 5000;
+  } else {
+     period = 120000;
   }
   
-  lcd.setCursor(0, 2);  
-  lcd.print(String("Compr. state: ") + compr);
+  handleButton();  
+   
+  if (millis() - timer1 >= period) {
+    Serial.println("-- Notify and etc.");
+    notifyLevel(waterLevel);
+    operateLcd(waterLevel);
+    setLcdCopressorState();
+    Blynk.virtualWrite(V3, scale); 
+    Blynk.virtualWrite(V2, waterLevel);  //Отправка данных на шкалу в Blynk 
+    timer1 = millis();   
+  }
     
-  Serial.println(wSensorData);
-  Serial.println(waterLevel);
-  Serial.println(scale);
-    
-  if (waterLevel >= FULL && isCompressorActive == 1 && wSensorData != 0) {
-    Blynk.virtualWrite(V1, "offLabel");    
-    pinCheck = 0;    
-  }  
-  processTXData(); 
-  processRXData();
+  changeLabel();  
+  processTXData();
+  
+  if (millis() - timer2 >= period) {
+    processRXData();
+    timer2 = millis();
+  }
   
   if ((waterLevel == TANK_HEIGHT) || (waterLevel < 0)) {
-    delay(3000);
-    lcd.clear();
-  }  
+    if (millis() - timer3 >= 3000) {
+      lcd.clear();
+      timer3 = millis();
+    }    
+  }   
 }
 
 //--------------------------------------
@@ -110,7 +102,8 @@ void processTXData() {
   if (isCompressorActive != pinCheck) {             
       radio.stopListening();
       isCompressorActive = pinCheck;         
-      Serial.println(isCompressorActive);  
+      Serial.print(isCompressorActive);
+      Serial.println(" -- !!processTXData!!");   
       radio.write(&isCompressorActive, sizeof(isCompressorActive));
   }     
 }
@@ -121,7 +114,8 @@ void processRXData(){
     if (radio.available()) {
        radio.read(&wSensorData, sizeof(wSensorData));      
     }
-  Serial.println(wSensorData);     
+  Serial.print(wSensorData);
+  Serial.println(" -- !!processRXData -- SensorData!!");       
 }
 
 //--------------------------------------
@@ -207,8 +201,70 @@ void setupRadio() {
 
   radio.powerUp(); //начать работу
   radio.stopListening();  //не слушаем радиоэфир, мы передатчик
-  Serial.println("CONFGURED");
-  delay(2000);
+  Serial.println("CONFGURED");  
+}
+
+void initDisplay() {
+  lcd.init();
+  // включаем подсветку
+  lcd.backlight();
+  // устанавливаем курсор в колонку 0, строку 0
+  lcd.setCursor(0, 0);
+  // печатаем первую строку
+  lcd.print("Starting...");  
+}
+
+void operateLcd(int waterLevel) {
+  lcd.setCursor(0, 0);
+  lcd.print(String("Water level: ") + String(waterLevel));
+  
+  lcd.setCursor(0, 1);
+  lcd.print(String("Scale level: ") + String(scale));  
+}
+
+void setLcdCopressorState() { 
+  String compr;
+  if (isCompressorActive == 0) {
+    flags.clearFlag = 0;    
+    compr = "Off";
+  } else if ((flags.clearFlag == 0) && (isCompressorActive == 1)) {
+    flags.clearFlag = 1;
+    lcd.clear();   
+    compr = "On";    
+  }
+  
+  lcd.setCursor(0, 2);  
+  lcd.print(String("Compr. state: ") + compr);
+}
+
+void changeLabel() {
+  if (waterLevel >= FULL && isCompressorActive == 1 && wSensorData != 0) {
+    Blynk.virtualWrite(V1, LOW);    
+    pinCheck = 0;    
+  }  
+}
+
+void handleButton() {
+  if ((digitalRead(D4) != HIGH) && (pinCheck == 0)) {   
+    if (millis() - timer4 >= 200) {
+      pinCheck = 1;
+//      Serial.println(isCompressorActive);
+//      Serial.println("ON");      
+      Blynk.virtualWrite(V1, HIGH);
+      led0.on();
+      timer4 = millis();      
+    }    
+   } else if ((digitalRead(D4) != HIGH) && (pinCheck == 1)) {  
+    if (millis() - timer4 >= 200) {
+      pinCheck = 0;
+//      Serial.println(pinCheck);
+//      Serial.println("Off");
+      
+      Blynk.virtualWrite(V1, LOW);
+      led0.off();       
+      timer4 = millis();
+      }       
+   }   
 }
 
 //--------------------------------------
