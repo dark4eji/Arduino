@@ -10,8 +10,8 @@
 
 #include <printf.h>
 
-#define CE_PIN   D3
-#define CSN_PIN D0
+#define CE_PIN   9
+#define CSN_PIN 10
 
 const byte thisSlaveAddress[5] = {'R','x','A','A','A'};
 

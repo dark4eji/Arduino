@@ -4,6 +4,8 @@
 #define MIDDLE 82
 #define LITTLE 41
 #define BUTTON D4
+#define GREEN     "#23C48E"
+#define RED       "#D3435C"
 
 #include <Wire.h> 
 #include <LiquidCrystal_I2C.h>
@@ -15,6 +17,8 @@
 
 RF24 radio(D3, D0);
 WidgetLED led0(V0);  //Создание класса для светодиода
+WidgetLED ledRelay(V4);
+WidgetLED ledWSensor(V5);
 
 char auth[] = "3e883JyisvmmRpfE9RrWlw_Qoa-B0vCX";
 char ssid[] = "TP-LINK_E196";
@@ -27,39 +31,66 @@ byte pinCheck = 0;  //Хранит 0 или 1 как сигнал с кнопк�
 
 int wSensorData;  //Хранит сырые данные с сенсора
 int waterLevel;
+
 float scale = 0;
 
 unsigned long timer1;
 unsigned long timer2;
 unsigned long timer3;
 unsigned long timer4;
+unsigned long timer5;
 
 int period = 120000;
+
+struct Chicken {
+  float temp1;
+  float temp2;
+};
+
+struct Data {
+  int id;
+  int data1;
+  int data2;
+};
 
 struct SFlags {
   byte full;
   byte half;
-  byte low; 
+  byte low;
+  byte pressButFlag; 
   byte clearFlag;
 };
 
-SFlags flags = {0, 0, 0, 0};
+SFlags flags = {0, 0, 0, 0, 0};
+Data data;
+Chicken chicken;
 
 LiquidCrystal_I2C lcd(0x26, 20, 4);
 
-void setup(){ 
+void setup(){  
   initDisplay();       
   Serial.begin(9600); //открываем порт для связи с ПК    
   Blynk.begin(auth, ssid, pass);  
   setupRadio();
+  
   timer1 = millis();
   timer2 = millis(); 
   timer3 = millis();
-  timer4 = millis();     
+  timer4 = millis();
+  timer5 = millis();    
+  
+  ledRelay.on();
+  ledWSensor.on();  
 }
 
-void loop() { 
-  waterLevel = TANK_HEIGHT - wSensorData;  
+void loop() {
+
+  if (wSensorData != 0) {
+    waterLevel = TANK_HEIGHT - wSensorData;  
+  } else {
+    waterLevel = 0;
+  }
+    
   Blynk.run();  
   
   if (isCompressorActive == 1) {
@@ -75,45 +106,55 @@ void loop() {
     notifyLevel(waterLevel);
     operateLcd(waterLevel);
     setLcdCopressorState();
-    Blynk.virtualWrite(V3, scale); 
-    Blynk.virtualWrite(V2, waterLevel);  //Отправка данных на шкалу в Blynk 
-    timer1 = millis();   
-  }
     
-  changeLabel();  
-  processTXData();
+    Blynk.virtualWrite(V3, scale);    
+    Blynk.virtualWrite(V2, waterLevel);  //Отправка данных на шкалу в Blynk 
+       
+    timer1 = millis();   
+  } 
+  
+  if (isCompressorActive != pinCheck) {
+     processTXData();
+  }
   
   if (millis() - timer2 >= period) {
     processRXData();
+    wSensorHealthCheck();
+    handleData();
     timer2 = millis();
+  }  
+  
+  if (millis() - timer3 >= 3000) {
+    if (wSensorData != 0) {
+     lcd.clear();
+     timer3 = millis();
+    }    
   }
   
-  if ((waterLevel == TANK_HEIGHT) || (waterLevel < 0)) {
-    if (millis() - timer3 >= 3000) {
-      lcd.clear();
-      timer3 = millis();
-    }    
-  }   
+  if (millis() - timer5 >= 1000) {
+    relayHealthcheck();
+    timer5 = millis();
+  }
+
+  shutDownRelay();      
 }
 
 //--------------------------------------
 //Отправка управляющего сигнала на реле
-void processTXData() {
-  if (isCompressorActive != pinCheck) {             
-      radio.stopListening();
-      isCompressorActive = pinCheck;         
-      Serial.print(isCompressorActive);
-      Serial.println(" -- !!processTXData!!");   
-      radio.write(&isCompressorActive, sizeof(isCompressorActive));
-  }     
+void processTXData() {                 
+    radio.stopListening();
+    isCompressorActive = pinCheck;         
+    Serial.print(isCompressorActive);
+    Serial.println(" -- !!processTXData!!");   
+    radio.write(&isCompressorActive, sizeof(isCompressorActive));         
 }
 //--------------------------------------
 //Прием сырых данных уровня воды
 void processRXData(){  
   radio.startListening();
     if (radio.available()) {
-       radio.read(&wSensorData, sizeof(wSensorData));      
-    }
+       radio.read(&data, sizeof(data));           
+    }    
   Serial.print(wSensorData);
   Serial.println(" -- !!processRXData -- SensorData!!");       
 }
@@ -187,7 +228,7 @@ void checkScale(int waterLevel) {
 void setupRadio() {
   radio.begin(); //активировать модуль
   radio.setAutoAck(1);         //режим подтверждения приёма, 1 вкл 0 выкл
-  radio.setRetries(0, 15);    //(время между попыткой достучаться, число попыток)
+  radio.setRetries(1, 15);    //(время между попыткой достучаться, число попыток)
   radio.enableAckPayload();    //разрешить отсылку данных в ответ на входящий сигнал
   radio.setPayloadSize(32);     //размер пакета, в байтах
   radio.setChannel(0x6b);
@@ -237,16 +278,16 @@ void setLcdCopressorState() {
   lcd.print(String("Compr. state: ") + compr);
 }
 
-void changeLabel() {
+void shutDownRelay() {
   if (waterLevel >= FULL && isCompressorActive == 1 && wSensorData != 0) {
     Blynk.virtualWrite(V1, LOW);    
     pinCheck = 0;    
   }  
 }
 
-void handleButton() {
+void handleButton() {    
   if ((digitalRead(D4) != HIGH) && (pinCheck == 0)) {   
-    if (millis() - timer4 >= 200) {
+    if (millis() - timer4 >= 200) {      
       pinCheck = 1;
 //      Serial.println(isCompressorActive);
 //      Serial.println("ON");      
@@ -254,12 +295,11 @@ void handleButton() {
       led0.on();
       timer4 = millis();      
     }    
-   } else if ((digitalRead(D4) != HIGH) && (pinCheck == 1)) {  
-    if (millis() - timer4 >= 200) {
+   } else if ((digitalRead(D4) != HIGH) && (pinCheck == 1)) {   
+    if (millis() - timer4 >= 200) {     
       pinCheck = 0;
 //      Serial.println(pinCheck);
-//      Serial.println("Off");
-      
+//      Serial.println("Off");      
       Blynk.virtualWrite(V1, LOW);
       led0.off();       
       timer4 = millis();
@@ -267,6 +307,34 @@ void handleButton() {
    }   
 }
 
+void relayHealthcheck() {
+  radio.stopListening();
+  bool check;
+  byte payload = 12;
+  check = radio.write(&payload, sizeof(payload));
+  if (check) {     
+     Blynk.setProperty(V4, "color", GREEN);      
+  } else {     
+     Blynk.setProperty(V4, "color", RED);
+  }
+}
+
+void wSensorHealthCheck() {
+  if (data.id == 1) {
+    Blynk.setProperty(V5, "color", GREEN);
+  } else {
+    Blynk.setProperty(V5, "color", RED);
+  }
+}
+
+void handleData() {
+   if (data.id == 1) {
+      wSensorData = data.data1;
+    } else if (data.id == 2) {
+      chicken.temp1 = data.data1 / 100;
+      chicken.temp2 = data.data2 / 100;      
+    } 
+}
 //--------------------------------------
 //--------------------------------------
 //ФУНКЦИИ BLYNK
