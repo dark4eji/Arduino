@@ -54,10 +54,10 @@ void loop() {
       data.humidity2 = 0;
       Blynk.setProperty(V4, "color", RED);
       
-      if (millis() - timer2 >= 120000) {
-         Blynk.notify("Модуль датчиков не активен 3 минуты");  
-         timer2 = millis();
-      }
+//      if (millis() - timer2 >= 120000) {
+//         Blynk.notify("Модуль датчиков не активен 3 минуты");  
+//         timer2 = millis();
+//      }
       
       Serial.println("Test2");
     }    
