@@ -21,8 +21,8 @@ WidgetLED ledRelay(V4);
 WidgetLED ledWSensor(V5);
 
 char auth[] = "3e883JyisvmmRpfE9RrWlw_Qoa-B0vCX";
-char ssid[] = "TP-LINK_E196";
-char pass[] = "5bLf7678a4_V1a";
+char ssid[] = "RT-WiFi_95B8";
+char pass[] = "9edt3JgT";
 
 byte address[][6] = {"1Node", "2Node", "3Node", "4Node", "5Node", "6Node"};  //1Node - главный модуль; 2Node - модуль реле; 3Node - модуль сенсора воды
 
@@ -85,6 +85,14 @@ void setup(){
 
 void loop() {
 
+   if (millis() - timer5 >= 500) {
+    relayHealthcheck();    
+    operateLcd(waterLevel);
+    setLcdCopressorState(waterLevel);   
+    timer5 = millis();
+  }
+
+
   if (wSensorData != 0) {
     waterLevel = TANK_HEIGHT - wSensorData;  
   } else {
@@ -103,9 +111,7 @@ void loop() {
    
   if (millis() - timer1 >= period) {
     Serial.println("-- Notify and etc.");
-    notifyLevel(waterLevel);
-    operateLcd(waterLevel);
-    setLcdCopressorState();
+    notifyLevel(waterLevel); 
     
     Blynk.virtualWrite(V3, scale);    
     Blynk.virtualWrite(V2, waterLevel);  //Отправка данных на шкалу в Blynk 
@@ -129,13 +135,7 @@ void loop() {
      lcd.clear();
      timer3 = millis();
     }    
-  }
-  
-  if (millis() - timer5 >= 1000) {
-    relayHealthcheck();
-    timer5 = millis();
-  }
-
+  } 
   shutDownRelay();      
 }
 
@@ -260,22 +260,23 @@ void operateLcd(int waterLevel) {
   lcd.print(String("Water level: ") + String(waterLevel));
   
   lcd.setCursor(0, 1);
-  lcd.print(String("Scale level: ") + String(scale));  
+  lcd.print(String("Scale level: ") + String(scale)); 
 }
 
-void setLcdCopressorState() { 
+void setLcdCopressorState(int waterLevel) { 
   String compr;
   if (isCompressorActive == 0) {
     flags.clearFlag = 0;    
     compr = "Off";
   } else if ((flags.clearFlag == 0) && (isCompressorActive == 1)) {
-    flags.clearFlag = 1;
-    lcd.clear();   
-    compr = "On";    
-  }
-  
+    flags.clearFlag = 1;       
+    compr = "On"; 
+    lcd.clear();
+    operateLcd(waterLevel);        
+  }  
   lcd.setCursor(0, 2);  
-  lcd.print(String("Compr. state: ") + compr);
+  lcd.print(String("Compr. state: ") + compr); 
+ 
 }
 
 void shutDownRelay() {
