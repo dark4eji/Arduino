@@ -8,12 +8,14 @@
         <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
         <outputRelativeToContentRoot value="true" />
         <module name="HomeSystemServer" />
+        <module name="WS" />
       </profile>
     </annotationProcessing>
   </component>
   <component name="JavacSettings">
     <option name="ADDITIONAL_OPTIONS_OVERRIDE">
       <module name="HomeSystemServer" options="-parameters" />
+      <module name="WS" options="-parameters" />
     </option>
   </component>
 </project>
