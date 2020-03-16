@@ -14,12 +14,12 @@ void setup() {
 void loop() {
   int moisture = analogRead(SENSPIN); 
   //Serial.println(moisture); 
-  if (digitalRead(GERK) == 0) {    
-    if (moisture >= LMOIST) {
-      digitalWrite(RELAY, LOW);
-    } else if (moisture <= HMOIST) {
-      digitalWrite(RELAY, HIGH);
-    } 
+   
+  if (moisture >= LMOIST) {
+    digitalWrite(RELAY, LOW);
+  } else if (moisture <= HMOIST) {
+    digitalWrite(RELAY, HIGH);
   } 
+
   delay(1000);
 }

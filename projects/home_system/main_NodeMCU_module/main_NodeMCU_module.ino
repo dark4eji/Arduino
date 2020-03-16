@@ -10,19 +10,26 @@ String contentType = "application/json";
 
 unsigned long timer1;
 
-struct DataToPost {
-  int b_tempUpperSensor;
-  int b_tempLowerSensor;
-  int m_rawWaterData;
+struct OutData {
+  float bOutTempUpperSensor;
+  float bOutTempLowerSensor;
+  float bOutHumUpperSensor;
+  float bOutHumLowerSensor;
+  short outRawWaterData;
+  
 };
 
-struct DataToGet {
-  const char* b_tempUpperSensor;
-  const char* b_tempLowerSensor;  
+struct InData {
+  float bInTempUpperSensor;
+  float bInTempLowerSensor;
+  float bInHumUpperSensor;
+  float bIntHumLowerSensor;
+  short inWaterLevel;
+  byte isCompressorActive;  
 };
 
-DataToPost dataToPost;
-DataToGet  dataToGet;
+OutData outData;
+InData  inData;
 
 void setup() {  
   Serial.begin(9600);

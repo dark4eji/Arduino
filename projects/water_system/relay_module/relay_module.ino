@@ -11,7 +11,6 @@ RF24 radio(CE, CSN);
 byte address[][6] = {"1Node", "2Node", "3Node", "4Node", "5Node", "6Node"};
 
 byte isCompressorActive = 0;
-byte gotData;
 
 void setup(){
   Serial.begin(9600); //открываем порт для связи с ПК
@@ -38,29 +37,14 @@ void setup(){
 }
 
 void loop() {  
-  processData();
-  
-  if (gotData == 1) {
-    isCompressorActive = 1;
-  } else if (gotData == 0) {
-    isCompressorActive = 0;
-  }
-  
-  manageRelay(isCompressorActive);
-  Serial.println(isCompressorActive);    
-}
-
-void manageRelay(int state) {
-  Serial.println(state);
-  if (state == 1) {       
-    digitalWrite(RELAY, HIGH);     
- } else {
-    digitalWrite(RELAY, LOW);  
-  }
-}
-
-void processData() {     
   if (radio.available()) {    
-    radio.read(&gotData, sizeof(gotData));     
-  }         
+    radio.read(&isCompressorActive, sizeof(isCompressorActive));     
+  }
+  
+  if (isCompressorActive == 1) {       
+    digitalWrite(RELAY, HIGH);     
+  } else {
+    digitalWrite(RELAY, LOW);  
+  }  
+  Serial.println(isCompressorActive);    
 }
