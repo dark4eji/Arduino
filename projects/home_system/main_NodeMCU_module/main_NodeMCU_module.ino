@@ -1,5 +1,7 @@
+#include <ArduinoOTA.h>
 #include <ESP8266WiFi.h>
 #include <ESP8266HTTPClient.h>
+
 #include <ArduinoJson.h>
 #include <BlynkSimpleEsp8266.h>
 
@@ -12,10 +14,10 @@ HTTPClient http;
 
 // WiFi Parameters
 char auth[] = "3e883JyisvmmRpfE9RrWlw_Qoa-B0vCX";
-char ssid[] = "RT-WiFi_95B8";
-char pass[] = "9edt3JgT";
+char ssid[] = "TP-LINK_E196";
+char pass[] = "5bLf7678a4_V1a";
 
-String url = "http://192.168.0.59:8080/sendData";
+String url = "http://192.168.0.105:8080/data";
 String contentType = "application/json";
 
 byte address[][6] = {"1Node", "2Node", "3Node", "4Node", "5Node", "6Node"};
@@ -39,9 +41,10 @@ struct InData {
   short actualWaterLevel;
   float scale;
   byte waterNotifyFlag;
-  char waterNotificationMessage;
+  const char* waterNotificationMessage;
   byte stateFlag;
-  byte relayPermission; 
+  byte relayPermission; //флаг
+  short ledState[3];
 };
 
 struct SensorData {
@@ -57,36 +60,89 @@ OutData outData;
 InData  inData;
 SensorData sData;
 
-void setup() {   
+void setup() {  
   Serial.begin(9600);
   Blynk.begin(auth, ssid, pass); 
+  
+  ArduinoOTA.setHostname("NodeMCU-1");
+  ArduinoOTA.begin();
+
   timer1 = millis();
 }
 
 void loop() {
+  ArduinoOTA.handle();
   Blynk.run();
-  processRXData(); 
   
+  processRXData();
+     
   if (inData.relayPermission == 1) {
       processTXData();
   }
     
-  if (millis() - timer1 >= 100) {
-    sendDataToServer();   
+  if (millis() - timer1 >= 200) {
+    sendDataToServer();
+    setBlynk();
+    
+    if (inData.waterNotifyFlag == 1) {
+      Blynk.notify(inData.waterNotificationMessage);
+    } 
+    
     timer1 = millis();
-  }
+  }  
 }
 
-void sendDataToServer() {             
+void sendDataToServer() {
     http.begin(url);
     http.addHeader("Content-Type", contentType);
-    int httpCode = http.POST(buildJsonToPost());                                                                        
-    if (httpCode > 0) {      
+    int httpCode = http.GET();  //Для POST добавить аргумент buildJsonToPost()
+    if (httpCode > 0) {
         buildJsonToGet();
     }
     http.end();   //Close connection
-  
 }
+
+String buildJsonToPost() {
+  const size_t capacity = JSON_OBJECT_SIZE(7) + 130;
+  String json;
+  DynamicJsonDocument docToPost(capacity);
+    
+  docToPost["outTempUpperSensor"] = outData.outTempUpperSensor;
+  docToPost["outTempLowerSensor"] = outData.outTempLowerSensor;
+  docToPost["outHumUpperSensor"]  = outData.outHumUpperSensor;
+  docToPost["outHumLowerSensor"]  = outData.outHumLowerSensor;
+  docToPost["outRawWaterData"]    = outData.outRawWaterData;
+  docToPost["blynkButtonState"]   = outData.blynkButtonState;
+  
+  serializeJson(docToPost, json);
+  return json;
+}
+
+void buildJsonToGet() {
+  const size_t capacity = JSON_ARRAY_SIZE(3) + JSON_OBJECT_SIZE(10) + 220;
+  DynamicJsonDocument docToGet(capacity);      
+  DeserializationError error = deserializeJson(docToGet, http.getString());         
+  if (error) {        
+      Serial.print(("deserializeJson() failed: "));
+      Serial.println(error.c_str());
+      return;
+    }    
+        
+  inData.inTempUpperSensor        = docToGet["inTempUpperSensor"];
+  inData.inTempLowerSensor        = docToGet["inTempLowerSensor"];
+  inData.inHumUpperSensor         = docToGet["inHumUpperSensor"];
+  inData.intHumLowerSensor        = docToGet["intHumLowerSensor"];
+  inData.actualWaterLevel         = docToGet["actualWaterLevel"];
+  inData.scale                    = docToGet["scale"];
+  inData.waterNotifyFlag          = docToGet["waterNotifyFlag"];
+  inData.waterNotificationMessage = docToGet["waterNotificationMessage"];
+  inData.stateFlag                = docToGet["stateFlag"]; 
+  inData.relayPermission          = docToGet["relayPermission"]; 
+  inData.ledState[0]              = docToGet["ledState"][0];
+  inData.ledState[1]              = docToGet["ledState"][1];
+  inData.ledState[2]              = docToGet["ledState"][2];
+}
+
 void setupRadio() { 
   radio.begin(); //активировать модуль
   radio.setAutoAck(1);         //режим подтверждения приёма, 1 вкл 0 выкл
@@ -114,7 +170,7 @@ void processRXData(){
            outData.outTempUpperSensor = sData.data1;
            outData.outTempLowerSensor = sData.data2;
            outData.outHumUpperSensor =  sData.data3;
-           outData.outHumLowerSensor =  sData.data4;        
+           outData.outHumLowerSensor =  sData.data4;
        } else if (sData.id == 2) {
            outData.outRawWaterData = sData.data5; 
        }
@@ -122,44 +178,17 @@ void processRXData(){
 }
 
 void processTXData() {                 
-    radio.stopListening()
+    radio.stopListening();
     radio.write(&inData.stateFlag, sizeof(inData.stateFlag));
 }
 
-String buildJsonToPost() {
-  const size_t capacity = JSON_OBJECT_SIZE(7) + 130;
-  String json;
-  DynamicJsonDocument docToPost(capacity);
-    
-  docToPost["outTempUpperSensor"] = outData.outTempUpperSensor;
-  docToPost["outTempLowerSensor"] = outData.outTempLowerSensor;
-  docToPost["outHumUpperSensor"]  = outData.outHumUpperSensor;
-  docToPost["outHumLowerSensor"]  = outData.outHumLowerSensor;
-  docToPost["outRawWaterData"]    = outData.outRawWaterData;
-  docToPost["blynkButtonState"]   = outData.blynkButtonState;
-  
-  serializeJson(docToPost, json);
-  return json;
+void setBlynk() {
+  Blynk.virtualWrite(V5, inData.scale); 
+  Blynk.virtualWrite(V6, inData.actualWaterLevel);
+  Blynk.virtualWrite(V7, inData.stateFlag); 
+  Blynk.virtualWrite(V9, inData.ledState[0]);
 }
 
-void buildJsonToGet() {
-  const size_t capacity = JSON_OBJECT_SIZE(10) + 180;
-  DynamicJsonDocument docToGet(capacity);      
-  DeserializationError error = deserializeJson(docToGet, http.getString());         
-  if (error) {        
-      Serial.print(("deserializeJson() failed: "));
-      Serial.println(error.c_str());
-      return;
-    }    
-        
-  inData.inTempUpperSensor        = docToGet["inTempUpperSensor"];
-  inData.inTempLowerSensor        = docToGet["inTempLowerSensor"];
-  inData.inHumUpperSensor         = docToGet["inHumUpperSensor"];
-  inData.intHumLowerSensor        = docToGet["intHumLowerSensor"];
-  inData.actualWaterLevel         = docToGet["actualWaterLevel"];
-  inData.scale                    = docToGet["scale"];
-  inData.waterNotifyFlag          = docToGet["waterNotifyFlag"];
-  inData.waterNotificationMessage = docToGet["waterNotificationMessage"];
-  inData.stateFlag                = docToGet["stateFlag"]; 
-  inData.relayPermission          = docToGet["relayPermission"]; 
+BLYNK_WRITE(V7) {
+  outData.blynkButtonState = param.asInt();
 }

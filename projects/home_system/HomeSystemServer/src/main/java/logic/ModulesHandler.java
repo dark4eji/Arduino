@@ -28,11 +28,13 @@ public class ModulesHandler {
         if (dataRequest.getBlynkButtonState() == 1 && ConstFlags.compressor == 0
                 && waterLevel < ConstFlags.TANK_FULL) {
             ConstFlags.compressor = 1;
+            ConstFlags.ledState[0] = 255;
             dataResponse.setStateFlag((byte) 1);
             dataResponse.setRelayPermission((byte) 1);
         } else if (dataRequest.getBlynkButtonState() == 0 && ConstFlags.compressor == 1) {
             ConstFlags.compressor = 0;
             dataResponse.setStateFlag((byte) 0);
+            ConstFlags.ledState[0] = 0;
             dataResponse.setRelayPermission((byte) 1);
         }
     }

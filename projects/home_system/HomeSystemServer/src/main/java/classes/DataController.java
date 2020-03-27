@@ -1,6 +1,7 @@
 package classes;
 
 import logic.ConditionsHandler;
+import logic.ConstFlags;
 import logic.ModulesHandler;
 import logic.WaterHandler;
 import models.DataRequest;
@@ -18,6 +19,7 @@ public class DataController {
         WaterHandler.handleWaterData(dataRequest, this.dataResponse);
         ModulesHandler.handleModules(dataRequest, this.dataResponse);
         ConditionsHandler.getTemperatureData(dataRequest, this.dataResponse);
+        dataResponse.setLedState(ConstFlags.ledState);
 
         return ResponseEntity.ok(this.dataResponse);
     }

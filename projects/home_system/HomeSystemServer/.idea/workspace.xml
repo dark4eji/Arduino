@@ -2,30 +2,17 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="54d1af09-ba72-45b7-9295-e1f979b49cb9" name="Default Changelist" comment="">
-      <change beforePath="$PROJECT_DIR$/.gitignore" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/compiler.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/compiler.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/misc.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/HomeSystemServer.iml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/pom.xml" beforeDir="false" afterPath="$PROJECT_DIR$/pom.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/META-INF/MANIFEST.MF" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/main/java/classes/DataController.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/classes/DataController.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/resources/logic/ConditionsHandler.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/resources/logic/ConstFlags.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/resources/logic/DataHandler.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/resources/logic/WaterHandler.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/resources/models/DataRequest.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/resources/models/DataResponse.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/target/WS-0.0.1-SNAPSHOT.jar.original" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/target/classes/META-INF/WS.kotlin_module" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/logic/ConstFlags.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/logic/ConstFlags.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/logic/ModulesHandler.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/logic/ModulesHandler.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/logic/WaterHandler.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/logic/WaterHandler.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/models/DataResponse.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/models/DataResponse.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/WS.jar" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/WebServer-1.0-SNAPSHOT.jar.original" beforeDir="false" afterPath="$PROJECT_DIR$/target/WebServer-1.0-SNAPSHOT.jar.original" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/target/classes/classes/DataController.class" beforeDir="false" afterPath="$PROJECT_DIR$/target/classes/classes/DataController.class" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/target/classes/resources/logic/ConditionsHandler.class" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/target/classes/resources/logic/ConstFlags.class" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/target/classes/resources/logic/DataHandler.class" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/target/classes/resources/logic/WaterHandler.class" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/target/classes/resources/models/DataRequest.class" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/target/classes/resources/models/DataResponse.class" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/target/maven-archiver/pom.properties" beforeDir="false" afterPath="$PROJECT_DIR$/target/maven-archiver/pom.properties" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/target/maven-status/maven-compiler-plugin/compile/default-compile/inputFiles.lst" beforeDir="false" afterPath="$PROJECT_DIR$/target/maven-status/maven-compiler-plugin/compile/default-compile/inputFiles.lst" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/logic/WaterHandler.class" beforeDir="false" afterPath="$PROJECT_DIR$/target/classes/logic/WaterHandler.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/models/DataRequest.class" beforeDir="false" afterPath="$PROJECT_DIR$/target/classes/models/DataRequest.class" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../main_NodeMCU_module/main_NodeMCU_module.ino" beforeDir="false" afterPath="$PROJECT_DIR$/../main_NodeMCU_module/main_NodeMCU_module.ino" afterDir="false" />
     </list>
     <ignored path="$PROJECT_DIR$/out/" />
@@ -59,11 +46,11 @@
           </provider>
         </entry>
       </file>
-      <file pinned="false" current-in-tab="true">
+      <file pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/src/main/java/classes/DataController.java">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="609">
-              <caret line="29" lean-forward="true" selection-start-line="29" selection-end-line="29" />
+            <state relative-caret-position="630">
+              <caret line="30" column="1" lean-forward="true" selection-start-line="30" selection-start-column="1" selection-end-line="30" selection-end-column="1" />
               <folding>
                 <element signature="imports" expanded="true" />
               </folding>
@@ -74,8 +61,8 @@
       <file pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/src/main/java/logic/WaterHandler.java">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="462">
-              <caret line="58" lean-forward="true" selection-start-line="58" selection-end-line="58" />
+            <state relative-caret-position="546">
+              <caret line="35" lean-forward="true" selection-start-line="35" selection-end-line="35" />
               <folding>
                 <element signature="imports" expanded="true" />
               </folding>
@@ -83,11 +70,11 @@
           </provider>
         </entry>
       </file>
-      <file pinned="false" current-in-tab="false">
+      <file pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/src/main/java/logic/ModulesHandler.java">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="190">
-              <caret line="11" column="59" selection-start-line="11" selection-start-column="59" selection-end-line="11" selection-end-column="59" />
+            <state relative-caret-position="525">
+              <caret line="25" column="52" selection-start-line="25" selection-start-column="52" selection-end-line="25" selection-end-column="52" />
               <folding>
                 <element signature="imports" expanded="true" />
               </folding>
@@ -98,8 +85,8 @@
       <file pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/src/main/java/models/DataRequest.java">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="63">
-              <caret line="3" lean-forward="true" selection-start-line="3" selection-end-line="3" />
+            <state relative-caret-position="105">
+              <caret line="5" column="13" selection-start-line="5" selection-start-column="13" selection-end-line="5" selection-end-column="13" />
             </state>
           </provider>
         </entry>
@@ -116,8 +103,8 @@
       <file pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/src/main/java/logic/ConstFlags.java">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="105">
-              <caret line="5" column="6" selection-start-line="5" selection-start-column="6" selection-end-line="5" selection-end-column="6" />
+            <state relative-caret-position="378">
+              <caret line="18" column="11" selection-start-line="18" selection-start-column="11" selection-end-line="18" selection-end-column="11" />
             </state>
           </provider>
         </entry>
@@ -145,11 +132,13 @@
     <option name="CHANGED_PATHS">
       <list>
         <option value="$PROJECT_DIR$/pom.xml" />
-        <option value="$PROJECT_DIR$/src/main/java/logic/WaterHandler.java" />
-        <option value="$PROJECT_DIR$/src/main/java/logic/ModulesHandler.java" />
         <option value="$PROJECT_DIR$/src/main/java/logic/ConditionsHandler.java" />
-        <option value="$PROJECT_DIR$/src/main/java/classes/DataController.java" />
         <option value="$PROJECT_DIR$/src/main/java/models/DataRequest.java" />
+        <option value="$PROJECT_DIR$/src/main/java/logic/WaterHandler.java" />
+        <option value="$PROJECT_DIR$/src/main/java/models/DataResponse.java" />
+        <option value="$PROJECT_DIR$/src/main/java/logic/ModulesHandler.java" />
+        <option value="$PROJECT_DIR$/src/main/java/logic/ConstFlags.java" />
+        <option value="$PROJECT_DIR$/src/main/java/classes/DataController.java" />
       </list>
     </option>
   </component>
@@ -169,11 +158,11 @@
       <select />
     </treeState>
   </component>
-  <component name="ProjectFrameBounds" extendedState="7">
-    <option name="x" value="-8" />
-    <option name="y" value="-8" />
+  <component name="ProjectFrameBounds" extendedState="6">
+    <option name="x" value="-30" />
+    <option name="y" value="-18" />
     <option name="width" value="1936" />
-    <option name="height" value="897" />
+    <option name="height" value="1100" />
   </component>
   <component name="ProjectLevelVcsManager" settingsEditedManually="true" />
   <component name="ProjectView">
@@ -182,7 +171,7 @@
       <foldersAlwaysOnTop value="true" />
     </navigator>
     <panes>
-      <pane id="PackagesPane" />
+      <pane id="Scope" />
       <pane id="ProjectPane">
         <subPane>
           <expand>
@@ -236,13 +225,13 @@
           <select />
         </subPane>
       </pane>
-      <pane id="Scope" />
+      <pane id="PackagesPane" />
     </panes>
   </component>
   <component name="PropertiesComponent">
-    <property name="com.android.tools.idea.instantapp.provision.ProvisionBeforeRunTaskProvider.myTimeStamp" value="1584855955252" />
+    <property name="com.android.tools.idea.instantapp.provision.ProvisionBeforeRunTaskProvider.myTimeStamp" value="1585299610933" />
     <property name="last_opened_file_path" value="$PROJECT_DIR$" />
-    <property name="settings.editor.selected.configurable" value="preferences.lookFeel" />
+    <property name="settings.editor.selected.configurable" value="project.propVCSSupport.Mappings" />
   </component>
   <component name="RecentsManager">
     <key name="MoveFile.RECENT_KEYS">
@@ -299,9 +288,8 @@
   </component>
   <component name="ToolWindowManager">
     <frame x="-8" y="-8" width="1936" height="1096" extended-state="6" />
-    <editor active="true" />
     <layout>
-      <window_info active="true" content_ui="combo" id="Project" order="0" visible="true" weight="0.23667377" />
+      <window_info active="true" content_ui="combo" id="Project" order="0" visible="true" weight="0.26385927" />
       <window_info id="Structure" order="1" side_tool="true" weight="0.25" />
       <window_info id="Image Layers" order="2" />
       <window_info id="Designer" order="3" />
@@ -310,7 +298,7 @@
       <window_info id="Favorites" order="6" side_tool="true" />
       <window_info anchor="bottom" id="Message" order="0" />
       <window_info anchor="bottom" id="Find" order="1" />
-      <window_info anchor="bottom" id="Run" order="2" visible="true" weight="0.13187954" />
+      <window_info anchor="bottom" id="Run" order="2" weight="0.13084112" />
       <window_info anchor="bottom" id="Debug" order="3" weight="0.4" />
       <window_info anchor="bottom" id="Cvs" order="4" weight="0.25" />
       <window_info anchor="bottom" id="Inspection" order="5" weight="0.4" />
@@ -323,7 +311,7 @@
       <window_info anchor="right" id="Ant Build" order="1" weight="0.25" />
       <window_info anchor="right" content_ui="combo" id="Hierarchy" order="2" weight="0.25" />
       <window_info anchor="right" id="Palette" order="3" />
-      <window_info anchor="right" id="Maven" order="4" visible="true" weight="0.11727079" />
+      <window_info anchor="right" id="Maven" order="4" visible="true" weight="0.13113007" />
       <window_info anchor="right" id="Theme Preview" order="5" />
       <window_info anchor="right" id="Capture Analysis" order="6" />
       <window_info anchor="right" id="Palette&#9;" order="7" />
@@ -340,44 +328,17 @@
     <entry file="file://$PROJECT_DIR$/Home.iml">
       <provider selected="true" editor-type-id="text-editor" />
     </entry>
-    <entry file="file://$PROJECT_DIR$/src/main/java/logic/ConstFlags.java">
+    <entry file="file://$PROJECT_DIR$/src/main/java/classes/Application.java">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="105">
-          <caret line="5" column="6" selection-start-line="5" selection-start-column="6" selection-end-line="5" selection-end-column="6" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/src/main/java/logic/ModulesHandler.java">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="190">
-          <caret line="11" column="59" selection-start-line="11" selection-start-column="59" selection-end-line="11" selection-end-column="59" />
-          <folding>
-            <element signature="imports" expanded="true" />
-          </folding>
+        <state relative-caret-position="126">
+          <caret line="8" column="13" selection-start-line="8" selection-start-column="13" selection-end-line="8" selection-end-column="13" />
         </state>
       </provider>
     </entry>
     <entry file="file://$PROJECT_DIR$/src/main/java/models/DataRequest.java">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="63">
-          <caret line="3" lean-forward="true" selection-start-line="3" selection-end-line="3" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/src/main/java/models/DataResponse.java">
-      <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="105">
           <caret line="5" column="13" selection-start-line="5" selection-start-column="13" selection-end-line="5" selection-end-column="13" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/src/main/java/logic/WaterHandler.java">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="462">
-          <caret line="58" lean-forward="true" selection-start-line="58" selection-end-line="58" />
-          <folding>
-            <element signature="imports" expanded="true" />
-          </folding>
         </state>
       </provider>
     </entry>
@@ -391,17 +352,44 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/src/main/java/classes/Application.java">
+    <entry file="file://$PROJECT_DIR$/src/main/java/logic/ConstFlags.java">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="126">
-          <caret line="8" column="13" selection-start-line="8" selection-start-column="13" selection-end-line="8" selection-end-column="13" />
+        <state relative-caret-position="378">
+          <caret line="18" column="11" selection-start-line="18" selection-start-column="11" selection-end-line="18" selection-end-column="11" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/src/main/java/models/DataResponse.java">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="105">
+          <caret line="5" column="13" selection-start-line="5" selection-start-column="13" selection-end-line="5" selection-end-column="13" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/src/main/java/logic/WaterHandler.java">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="546">
+          <caret line="35" lean-forward="true" selection-start-line="35" selection-end-line="35" />
+          <folding>
+            <element signature="imports" expanded="true" />
+          </folding>
         </state>
       </provider>
     </entry>
     <entry file="file://$PROJECT_DIR$/src/main/java/classes/DataController.java">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="609">
-          <caret line="29" lean-forward="true" selection-start-line="29" selection-end-line="29" />
+        <state relative-caret-position="630">
+          <caret line="30" column="1" lean-forward="true" selection-start-line="30" selection-start-column="1" selection-end-line="30" selection-end-column="1" />
+          <folding>
+            <element signature="imports" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/src/main/java/logic/ModulesHandler.java">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="525">
+          <caret line="25" column="52" selection-start-line="25" selection-start-column="52" selection-end-line="25" selection-end-column="52" />
           <folding>
             <element signature="imports" expanded="true" />
           </folding>

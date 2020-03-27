@@ -9,16 +9,16 @@ public class WaterHandler {
 
         short waterLevel = getActualWaterLvl(dataRequest);
         dataResponse.setActualWaterLevel(waterLevel);
-        dataResponse.setWaterNotificationMessage(getWaterNotification(waterLevel, dataResponse));
+        getWaterNotification(waterLevel, dataResponse);
         dataResponse.setScale(setScale(waterLevel));
     }
 
-    private static String getWaterNotification(int waterLevel, DataResponse dataResponse) {
+    private static void getWaterNotification(int waterLevel, DataResponse dataResponse) {
+        dataResponse.setWaterNotificationMessage("");
         dataResponse.setWaterNotifyFlag((byte)(0));
-        String message = "";
         if (waterLevel >= ConstFlags.TANK_FULL && ConstFlags.full != 1) {
             ConstFlags.full = 1;
-            message = "!ВОДА! -- Бак полон";
+            dataResponse.setWaterNotificationMessage("!ВОДА! -- Бак полон");
             dataResponse.setWaterNotifyFlag((byte)(1));
         } else if (waterLevel == (ConstFlags.TANK_FULL - 4)) {
             ConstFlags.full = 0;
@@ -26,7 +26,7 @@ public class WaterHandler {
 
         if (waterLevel == ConstFlags.TANK_HALF && ConstFlags.half != 1) {
             ConstFlags.half = 1;
-            message = "!ВОДА! -- Пол бака";
+            dataResponse.setWaterNotificationMessage("!ВОДА! -- Пол бака");
             dataResponse.setWaterNotifyFlag((byte)(1));
         } else if (waterLevel == (ConstFlags.TANK_HALF - 4)) {
             ConstFlags.half = 0;
@@ -36,12 +36,11 @@ public class WaterHandler {
 
         if ((waterLevel == ConstFlags.TANK_EMPTY) && (ConstFlags.empty != 1)) {
             ConstFlags.empty = 1;
-            message = "!ВОДА! -- !НИЗКИЙ УРОВЕНЬ ВОДЫ!";
+            dataResponse.setWaterNotificationMessage("!ВОДА! -- !НИЗКИЙ УРОВЕНЬ ВОДЫ!");
             dataResponse.setWaterNotifyFlag((byte)(1));
         } else if ((waterLevel == (ConstFlags.TANK_EMPTY + 4)) && (ConstFlags.empty == 1)) {
             ConstFlags.empty = 0;
         }
-        return message;
     }
 
      static short getActualWaterLvl(DataRequest dataRequest) {
