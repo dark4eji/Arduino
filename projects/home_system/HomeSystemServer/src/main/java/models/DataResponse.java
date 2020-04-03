@@ -13,6 +13,5 @@ public class DataResponse {
     private byte waterNotifyFlag; //Denotes should water lvl notification be send or not
     private String waterNotificationMessage;
     private byte stateFlag; //Current button state
-    private byte relayPermission; //Flag that permits or prohibits sending data to relay
     private short[] ledState;
 }

@@ -2,4 +2,6 @@ https://mcudude.github.io/MiniCore/package_MCUdude_MiniCore_index.json -- for At
 https://raw.githubusercontent.com/damellis/attiny/ide-1.6.x-boards-manager/package_damellis_attiny_index.json -- for Attiny's (25+)
 https://mcudude.github.io/MicroCore/package_MCUdude_MicroCore_index.json -- for Attiny13
 
+http://arduino.esp8266.com/stable/package_esp8266com_index.json -- for NodeMCU
+
 https://forum.arduino.cc/index.php?topic=421081.0 -- all about nRF24 (robin24)

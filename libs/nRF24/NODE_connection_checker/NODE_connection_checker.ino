@@ -15,7 +15,7 @@
 
 const byte thisSlaveAddress[5] = {'R','x','A','A','A'};
 
-RF24 radio(9, 10);
+RF24 radio(D3, D0);
 
 char dataReceived[10]; // this must match dataToSend in the TX
 bool newData = false;

@@ -6,7 +6,6 @@ import models.DataResponse;
 public class ModulesHandler {
     public static void handleModules(DataRequest dataRequest,
                                      DataResponse dataResponse) {
-        dataResponse.setRelayPermission((byte) 0);
         short waterLevel = WaterHandler.getActualWaterLvl(dataRequest);
         shutRelay(dataRequest, dataResponse, waterLevel);
         manageBlynkButton(dataRequest, dataResponse, waterLevel);
@@ -18,7 +17,6 @@ public class ModulesHandler {
         if (waterLevel >= ConstFlags.TANK_FULL && ConstFlags.compressor == 1
                 && dataRequest.getOutRawWaterData() != 0) {
             ConstFlags.compressor = 0;
-            dataResponse.setRelayPermission((byte) 1);
             dataResponse.setStateFlag((byte) 0);
         }
     }
@@ -30,12 +28,23 @@ public class ModulesHandler {
             ConstFlags.compressor = 1;
             ConstFlags.ledState[0] = 255;
             dataResponse.setStateFlag((byte) 1);
-            dataResponse.setRelayPermission((byte) 1);
         } else if (dataRequest.getBlynkButtonState() == 0 && ConstFlags.compressor == 1) {
             ConstFlags.compressor = 0;
             dataResponse.setStateFlag((byte) 0);
             ConstFlags.ledState[0] = 0;
-            dataResponse.setRelayPermission((byte) 1);
         }
+    }
+
+    private static void manageModulesLed (DataRequest dataRequest,
+                                          DataResponse dataResponse) {
+
+    }
+
+    private static byte resolveModuleStatus (DataRequest dataRequest) {
+        byte status = 0;
+
+
+
+        return status;
     }
 }

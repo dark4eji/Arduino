@@ -10,4 +10,5 @@ public class DataRequest {
     private short outHumLowerSensor;
     private short outRawWaterData;
     private byte blynkButtonState;
+    private byte[] moduleState;
 }
