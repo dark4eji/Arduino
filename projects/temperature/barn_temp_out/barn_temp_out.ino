@@ -48,13 +48,13 @@ void setup() {
 void loop() {
   if (millis() - timer >= 2000) {
     getDHT();
-    radio.write(&data, sizeof(data));    
+    radio.write(&data, sizeof(data));
     timer = millis();
   }
 }
 
 void getDHT() {
-  data.data2 = dht1.readTemperature() - 1
+  data.data2 = dht1.readTemperature() - 1;
   data.data3 = dht2.readTemperature();
   data.data4 = dht1.readHumidity();
   data.data5 = dht2.readHumidity();
@@ -88,7 +88,7 @@ void getDHT() {
     data.temperature2 = 0;
   }
   */
-}
+
 
 void setupRadio() {
   radio.begin(); //активировать модуль

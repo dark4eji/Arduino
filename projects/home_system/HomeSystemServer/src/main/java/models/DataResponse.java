@@ -13,5 +13,5 @@ public class DataResponse {
     private byte waterNotifyFlag; //Denotes should water lvl notification be send or not
     private String waterNotificationMessage;
     private byte stateFlag; //Current button state
-    private short[] ledState;
+   // private short[] ledState;
 }

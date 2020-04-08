@@ -30,8 +30,7 @@ struct OutData {
   float outHumUpperSensor;
   float outHumLowerSensor;
   short outRawWaterData;
-  byte blynkButtonState;
-  byte moduleState[3];
+  int blynkButtonState;
 };
 
 struct InData {
@@ -44,16 +43,15 @@ struct InData {
   byte waterNotifyFlag;
   const char* waterNotificationMessage;
   byte stateFlag = 0;
-  short ledState[3];
 };
 
 struct Data {
-  short id; // id 1 = модуль температуры в сарае, id 2 = модуль воды
-  short data1;
-  float data2;
-  float data3;
-  float data4;
-  float data5;
+  short id = 0; // id 1 = модуль температуры в сарае, id 2 = модуль воды
+  short data1 = 0;
+  float data2 = 0;
+  float data3 = 0;
+  float data4 = 0;
+  float data5 = 0;
 };
 
 OutData outData;
@@ -97,12 +95,10 @@ void sendDataToServer() {
         buildJsonToGet();
     }
     http.end(); //Close connection
-    outData.moduleState[0] = 0;
-    outData.moduleState[1] = 0;
 }
 
 String buildJsonToPost() {
-  const size_t capacity = JSON_OBJECT_SIZE(7) + 130;
+  const size_t capacity = JSON_OBJECT_SIZE(6);
   String json;
   DynamicJsonDocument docToPost(capacity);
 
@@ -118,7 +114,7 @@ String buildJsonToPost() {
 }
 
 void buildJsonToGet() {
-  const size_t capacity = JSON_ARRAY_SIZE(3) + JSON_OBJECT_SIZE(10) + 220;
+  const size_t capacity = JSON_OBJECT_SIZE(9) + 250;
   DynamicJsonDocument docToGet(capacity);
   DeserializationError error = deserializeJson(docToGet, http.getString());
   if (error) {
@@ -136,9 +132,6 @@ void buildJsonToGet() {
   inData.waterNotifyFlag          = docToGet["waterNotifyFlag"];
   inData.waterNotificationMessage = docToGet["waterNotificationMessage"];
   inData.stateFlag                = docToGet["stateFlag"];
-  inData.ledState[0]              = docToGet["ledState"][0];
-  inData.ledState[1]              = docToGet["ledState"][1];
-  inData.ledState[2]              = docToGet["ledState"][2];
 }
 
 void processRXData(){
@@ -152,10 +145,8 @@ void processRXData(){
            outData.outTempLowerSensor = data.data3;
            outData.outHumUpperSensor =  data.data4;
            outData.outHumLowerSensor =  data.data5;
-           outData.moduleState[0] = 1;
        } else if (data.id == 2) {
           outData.outRawWaterData = data.data1;
-          outData.moduleState[1] = 1;
        }
     } else {
       Serial.println("NA");
@@ -164,14 +155,13 @@ void processRXData(){
 
 void processTXData() {
     radio.stopListening();
-    outData.moduleState[2] = radio.write(&inData.stateFlag, sizeof(inData.stateFlag));
+    radio.write(&inData.stateFlag, sizeof(inData.stateFlag));
 }
 
 void setBlynk() {
   Blynk.virtualWrite(V5, inData.scale);
   Blynk.virtualWrite(V6, inData.actualWaterLevel);
   Blynk.virtualWrite(V7, inData.stateFlag);
-  Blynk.virtualWrite(V9, inData.ledState[0]);
 }
 
 BLYNK_WRITE(V7) {

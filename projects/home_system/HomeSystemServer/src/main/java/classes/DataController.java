@@ -19,7 +19,7 @@ public class DataController {
         WaterHandler.handleWaterData(dataRequest, this.dataResponse);
         ModulesHandler.handleModules(dataRequest, this.dataResponse);
         ConditionsHandler.getTemperatureData(dataRequest, this.dataResponse);
-        dataResponse.setLedState(ConstFlags.ledState);
+        //dataResponse.setLedState(ConstFlags.ledState);
 
         return ResponseEntity.ok(this.dataResponse);
     }
