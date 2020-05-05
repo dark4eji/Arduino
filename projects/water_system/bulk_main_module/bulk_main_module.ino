@@ -1,5 +1,4 @@
 #include <ArduinoOTA.h>
-
 #include <WaterHandler.h>
 #include <Constants.h>
 
@@ -58,7 +57,7 @@ void setup() {
   Serial.begin(9600);
   Blynk.begin(auth, ssid, pass);
   ArduinoOTA.setHostname("MCU");
-  ArduinoOTA.begin();  
+  ArduinoOTA.begin();
 
   setupRadio();
 
@@ -126,7 +125,7 @@ void setIdTwoParams(){
 
 void setData() {
   if (data.id != 1) {
-    if (millis() - timer_IdOne >= 5000) {
+    if (millis() - timer_IdOne >= 120000) {
       Blynk.setProperty(V4, "color", ns.RED);
       Blynk.virtualWrite(V0, 0);
       Blynk.virtualWrite(V1, 0);
@@ -140,7 +139,7 @@ void setData() {
   }
 
   if (data.id != 2) {
-    if (millis() - timer_IdTwo >= 10000) {
+    if (millis() - timer_IdTwo >= 20000) {
       Blynk.virtualWrite(V5, 0);
       Blynk.virtualWrite(V6, 0);
       Blynk.setProperty(V9, "color", ns.RED);
@@ -152,11 +151,10 @@ void setData() {
     wstate = 1;
     setIdTwoParams();
   }
-
 }
 
 void shutRelay() {
-  if (waterLevel >= 130 && compressor == 1) {
+  if (waterLevel >= ns.TANK_FULL && compressor == 1) {
       compressor = 0;
       pinState = 0;
       Blynk.virtualWrite(V7, LOW);
@@ -164,7 +162,7 @@ void shutRelay() {
 }
 
 void manageBlynkButton() {
-  if (pinState == 1 && compressor == 0 && waterLevel < 130) {
+  if (pinState == 1 && compressor == 0 && waterLevel < ns.TANK_FULL) {
       compressor = 1;
       Blynk.virtualWrite(V7, HIGH);
   } else if (pinState == 0 && compressor == 1) {
@@ -191,7 +189,7 @@ void processTXData() {
 
 BLYNK_WRITE(V7) {
   pinState = param.asInt();
-  if (waterLevel >= 130 || wstate == 0) {
+  if (waterLevel >= ns.TANK_FULL || wstate == 0) {
     Blynk.virtualWrite(V7, LOW);
     compressor = 0;
     pinState = 0;
