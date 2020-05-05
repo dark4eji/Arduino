@@ -154,7 +154,7 @@ void setData() {
 }
 
 void shutRelay() {
-  if (waterLevel >= 130 && compressor == 1) {
+  if (waterLevel >= ns.TANK_FULL && compressor == 1) {
       compressor = 0;
       pinState = 0;
       Blynk.virtualWrite(V7, LOW);
@@ -162,7 +162,7 @@ void shutRelay() {
 }
 
 void manageBlynkButton() {
-  if (pinState == 1 && compressor == 0 && waterLevel < 130) {
+  if (pinState == 1 && compressor == 0 && waterLevel < ns.TANK_FULL) {
       compressor = 1;
       Blynk.virtualWrite(V7, HIGH);
   } else if (pinState == 0 && compressor == 1) {
@@ -189,7 +189,7 @@ void processTXData() {
 
 BLYNK_WRITE(V7) {
   pinState = param.asInt();
-  if (waterLevel >= 130 || wstate == 0) {
+  if (waterLevel >= ns.TANK_FULL || wstate == 0) {
     Blynk.virtualWrite(V7, LOW);
     compressor = 0;
     pinState = 0;
