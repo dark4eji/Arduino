@@ -21,11 +21,11 @@ float WaterHandler::getScale(int waterLevel) {
                            5.5, 5, 4.5, 4, 3.5, 3, 2.5, 2};
 
   for (int i = 0; i <= 17 - 1; i++) {
-    if (waterLevel < levelsArray[i] && waterLevel > levelsArray[i + 1])
+    if ((waterLevel < levelsArray[i]) && (waterLevel > levelsArray[i + 1])) {
       return scalesArray[i + 1];
     } else if (waterLevel == levelsArray[i]) {
       return scalesArray[i];
-    } else if (waterLevel > levelsArray[0] || waterLevel > levelsArray[1]) {
+    } else if ((waterLevel > levelsArray[0) || (waterLevel > levelsArray[1])) {
       return scalesArray[0];
     }
   }
