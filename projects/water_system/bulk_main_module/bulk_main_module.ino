@@ -1,3 +1,6 @@
+#include <NTPClient.h>
+#include <WiFiUdp.h>
+
 #include <ArduinoOTA.h>
 #include <WaterHandler.h>
 #include <Constants.h>
@@ -9,37 +12,52 @@
 #include "nRF24L01.h"
 #include "RF24.h"
 
-RF24 radio(D4, D2);
-WidgetLED ledRelay(V8);
-WidgetLED ledWater(V9);
-WidgetLED ledTemp(V4);
+const long utcOffsetInSeconds = 25200;
+WiFiUDP ntpUDP;
+NTPClient timeClient(ntpUDP, "pool.ntp.org", utcOffsetInSeconds);
 
-WaterHandler wh;
-Constants ns;
+byte activityChicken    = 1;  // состояние датчика в курятнике
+byte activityWater      = 1;  // состояние датчика воды
+byte activityRelay      = 1;  // состояние реле
+
+byte scheduledReboot    = 1;  // запланированная перезагрузка MCU (вкл/выкл)
+byte conditionalReboot  = 1;  // условная перезагрузка в зависимости от состояния модулей (вкл/выкл)
+
+int rebootTime          = 3;  // время перезагрузки (в часах)
+
+RF24 radio              (D4, D2);
+WidgetLED ledRelay      (V8);
+WidgetLED ledWater      (V9);
+WidgetLED ledTemp       (V4);
+
+WaterHandler  wh;
+Constants     ns;
 
 // WiFi Parameters
 char auth[] = "3e883JyisvmmRpfE9RrWlw_Qoa-B0vCX";
-char ssid[] = "RT-WiFi_95B8";
+char ssid[] = "RT-WiFi_95B8_Repeater";
 char pass[] = "9edt3JgT";
 
 byte address[][6] = {"1Node", "2Node", "3Node", "4Node", "5Node", "6Node"};
 
 unsigned long timer_rxtx;
-unsigned long timer_json;
 unsigned long timer_notif;
+unsigned long timer_restart;
 unsigned long timer_IdTwo;
 unsigned long timer_IdOne;
+
+int currentHour;
+int currentMin;
+int currentSec;
 
 float t1;
 float t2;
 float h1;
 float h2;
 
-byte wstate;
 int waterLevel;
 int pinState;
 byte compressor;
-int rslt;
 String message;
 
 struct Data {
@@ -52,34 +70,45 @@ struct Data {
 };
 
 Data data;
+WidgetTerminal terminal(V10);
 
 void setup() {
-  Serial.begin(9600);
-  Blynk.begin(auth, ssid, pass);
-  ArduinoOTA.setHostname("MCU");
-  ArduinoOTA.begin();
+  Serial.begin            (9600);
+  Blynk.begin             (auth, ssid, pass);
+  timeClient.begin        ();
+
+  showDateTime            ();
+  terminal.println        ("Initializing MCU...");
+  terminal.flush          ();
+
+  ArduinoOTA.setHostname  ("MCU");
+  ArduinoOTA.begin        ();
 
   setupRadio();
 
-  timer_json = millis();
-  timer_rxtx = millis();
-  timer_notif = millis();
-  timer_IdTwo = millis();
-  timer_IdOne = millis();
+  timer_rxtx = millis     ();
+  timer_notif = millis    ();
+  timer_restart = millis  ();
+  timer_IdTwo = millis    ();
+  timer_IdOne = millis    ();
 
-  ledRelay.on();
-  ledWater.on();
-  ledTemp.on();
+  ledRelay.on             ();
+  ledWater.on             ();
+  ledTemp.on              ();
+
+  showDateTime            ();
+  terminal.println        ("MCU is ready");
+  terminal.flush          ();
 }
 
 void loop() {
   Blynk.run();
   ArduinoOTA.handle();
-
+  restartMCU();
   shutRelay();
   manageBlynkButton();
 
-  if (millis() - timer_rxtx >= 10) {
+  if (millis() - timer_rxtx >= 50) {
     processTXData();
     processRXData();
     setData();
@@ -93,14 +122,11 @@ void loop() {
     timer_notif = millis();
   }
 
-  if (rslt == 1) {
+  if (activityRelay == 1) {
     Blynk.setProperty(V8, "color", ns.GREEN);
   } else {
     Blynk.setProperty(V8, "color", ns.RED);
   }
-
-  Serial.println(compressor);
-  Serial.println(rslt);
 }
 
 void setIdOneParams() {
@@ -131,10 +157,12 @@ void setData() {
       Blynk.virtualWrite(V1, 0);
       Blynk.virtualWrite(V2, 0);
       Blynk.virtualWrite(V3, 0);
+      activityChicken = 0;
       timer_IdOne = millis();
     }
   } else {
     timer_IdOne = millis();
+    activityChicken = 1;
     setIdOneParams();
   }
 
@@ -143,18 +171,21 @@ void setData() {
       Blynk.virtualWrite(V5, 0);
       Blynk.virtualWrite(V6, 0);
       Blynk.setProperty(V9, "color", ns.RED);
-      wstate = 0;
+      activityWater = 0;
       timer_IdTwo = millis();
     }
   } else {
     timer_IdTwo = millis();
-    wstate = 1;
+    activityWater = 1;
     setIdTwoParams();
   }
 }
 
 void shutRelay() {
-  if (waterLevel >= ns.TANK_FULL && compressor == 1) {
+  /* отключает реле при включенном насосе по достижении критического уровня +
+     отклчает реле при неактивном сенсоре воды
+  */
+  if ((waterLevel >= ns.TANK_FULL && compressor == 1) || activityWater == 0) {
       compressor = 0;
       pinState = 0;
       Blynk.virtualWrite(V7, LOW);
@@ -184,29 +215,55 @@ void processRXData(){
 
 void processTXData() {
     radio.stopListening();
-    rslt = radio.write(&compressor, sizeof(compressor));
+    activityRelay = radio.write(&compressor, sizeof(compressor));
 }
 
-BLYNK_WRITE(V7) {
-  pinState = param.asInt();
-  if (waterLevel >= ns.TANK_FULL || wstate == 0) {
-    Blynk.virtualWrite(V7, LOW);
-    compressor = 0;
-    pinState = 0;
+void applyRestart() {
+  showDateTime();
+  terminal.println("Restarting MCU...");
+  terminal.flush();
+  radio.powerDown();
+  delay(1000);
+  ESP.restart();
+}
+
+void restartMCU() {
+  if (scheduledReboot == 1) {
+    timeClient.update();
+    if (timeClient.getHours() == rebootTime && timeClient.getMinutes() == 0
+                                            && timeClient.getSeconds() == 0) {
+      applyRestart();
+    }
+  }
+
+  if (conditionalReboot == 1) {
+    if (activityChicken == 0 && activityWater == 0 && activityRelay == 0) {
+      if (millis() - timer_restart >= 150000) {
+        applyRestart();
+      }
+    } else {
+      timer_restart = millis();
+    }
   }
 }
 
+void showDateTime() {
+  timeClient.update();
+  String dateTime = timeClient.getFormattedDate();
+  terminal.print(dateTime + " ");
+}
+
 void setupRadio() {
-  radio.begin(); //активировать модуль
-  radio.setAutoAck(1);         //режим подтверждения приёма, 1 вкл 0 выкл
-  radio.setRetries(1, 15);    //(время между попыткой достучаться, число попыток)
-  radio.enableAckPayload();    //разрешить отсылку данных в ответ на входящий сигнал
-  radio.setPayloadSize(32);     //размер пакета, в байтах
-  radio.setChannel(0x6b);
-  radio.openWritingPipe(address[2]);   //мы - труба 0, открываем канал для передачи данных
-  radio.openReadingPipe(1, address[1]);
-  radio.setPALevel (RF24_PA_MAX);
-  radio.setDataRate (RF24_250KBPS);
-  radio.powerUp(); //начать работу
-  radio.startListening();  //не слушаем радиоэфир, мы передатчик
+  radio.begin             (); //активировать модуль
+  radio.setAutoAck        (1);         //режим подтверждения приёма, 1 вкл 0 выкл
+  radio.setRetries        (1, 15);    //(время между попыткой достучаться, число попыток)
+  radio.enableAckPayload  ();    //разрешить отсылку данных в ответ на входящий сигнал
+  radio.setPayloadSize    (32);     //размер пакета, в байтах
+  radio.setChannel        (0x6b);
+  radio.openWritingPipe   (address[2]);   //мы - труба 0, открываем канал для передачи данных
+  radio.openReadingPipe   (1, address[1]);
+  radio.setPALevel        (RF24_PA_MAX);
+  radio.setDataRate       (RF24_250KBPS);
+  radio.powerUp           (); //начать работу
+  radio.startListening    ();  //не слушаем радиоэфир, мы передатчик
 }
