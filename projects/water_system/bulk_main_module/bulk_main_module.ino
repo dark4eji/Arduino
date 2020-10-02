@@ -22,6 +22,7 @@ byte activityRelay      = 1;  // состояние реле
 
 byte scheduledReboot    = 1;  // запланированная перезагрузка MCU (вкл/выкл)
 byte conditionalReboot  = 1;  // условная перезагрузка в зависимости от состояния модулей (вкл/выкл)
+<<<<<<< HEAD
 
 int rebootTime          = 3;  // время перезагрузки (в часах)
 
@@ -30,6 +31,16 @@ WidgetLED ledRelay      (V8);
 WidgetLED ledWater      (V9);
 WidgetLED ledTemp       (V4);
 
+=======
+
+int rebootTime          = 3;  // время перезагрузки (в часах)
+
+RF24 radio              (D4, D2);
+WidgetLED ledRelay      (V8);
+WidgetLED ledWater      (V9);
+WidgetLED ledTemp       (V4);
+
+>>>>>>> autoreboot
 WaterHandler  wh;
 Constants     ns;
 
@@ -91,11 +102,19 @@ void setup() {
   timer_restart = millis  ();
   timer_IdTwo = millis    ();
   timer_IdOne = millis    ();
+<<<<<<< HEAD
 
   ledRelay.on             ();
   ledWater.on             ();
   ledTemp.on              ();
 
+=======
+
+  ledRelay.on             ();
+  ledWater.on             ();
+  ledTemp.on              ();
+
+>>>>>>> autoreboot
   showDateTime            ();
   terminal.println        ("MCU is ready");
   terminal.flush          ();
@@ -189,15 +208,19 @@ void shutRelay() {
       compressor = 0;
       pinState = 0;
       Blynk.virtualWrite(V7, LOW);
+      terminal.println("Shut off relay");
   }
+  
 }
 
 void manageBlynkButton() {
   if (pinState == 1 && compressor == 0 && waterLevel < ns.TANK_FULL) {
       compressor = 1;
+      terminal.println("compressor = 1");
       Blynk.virtualWrite(V7, HIGH);
   } else if (pinState == 0 && compressor == 1) {
       compressor = 0;
+      terminal.println("compressor = 0");
       Blynk.virtualWrite(V7, LOW);
   }
 }
@@ -251,6 +274,10 @@ void showDateTime() {
   timeClient.update();
   String dateTime = timeClient.getFormattedDate();
   terminal.print(dateTime + " ");
+}
+
+BLYNK_WRITE(V7) {
+  pinState = param.asInt();
 }
 
 void setupRadio() {
