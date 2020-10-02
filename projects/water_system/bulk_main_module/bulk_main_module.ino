@@ -12,9 +12,31 @@
 #include "nRF24L01.h"
 #include "RF24.h"
 
-const long utcOffsetInSeconds = 25200;
+RF24 radio              (D4, D2);
+WidgetLED ledRelay      (V8);
+WidgetLED ledWater      (V9);
+WidgetLED ledTemp       (V4);
+WidgetTerminal terminal (V10);
+
 WiFiUDP ntpUDP;
 NTPClient timeClient(ntpUDP, "pool.ntp.org", utcOffsetInSeconds);
+
+Data data;
+
+const int TANK_HEIGHT = 165;
+const int TANK_FULL   = 147;
+const int TANK_HALF   = 70;
+const int TANK_EMPTY  = 56;
+
+const String GREEN    = "#23C48E";
+const String RED      = "#D3435C";
+
+byte full = 0;
+byte half = 0;
+byte empty = 0;
+byte notifyFlag = 0;
+
+const long utcOffsetInSeconds = 25200;
 
 byte activityChicken    = 1;  // состояние датчика в курятнике
 byte activityWater      = 1;  // состояние датчика воды
@@ -22,27 +44,8 @@ byte activityRelay      = 1;  // состояние реле
 
 byte scheduledReboot    = 1;  // запланированная перезагрузка MCU (вкл/выкл)
 byte conditionalReboot  = 1;  // условная перезагрузка в зависимости от состояния модулей (вкл/выкл)
-<<<<<<< HEAD
 
 int rebootTime          = 3;  // время перезагрузки (в часах)
-
-RF24 radio              (D4, D2);
-WidgetLED ledRelay      (V8);
-WidgetLED ledWater      (V9);
-WidgetLED ledTemp       (V4);
-
-=======
-
-int rebootTime          = 3;  // время перезагрузки (в часах)
-
-RF24 radio              (D4, D2);
-WidgetLED ledRelay      (V8);
-WidgetLED ledWater      (V9);
-WidgetLED ledTemp       (V4);
-
->>>>>>> autoreboot
-WaterHandler  wh;
-Constants     ns;
 
 // WiFi Parameters
 char auth[] = "3e883JyisvmmRpfE9RrWlw_Qoa-B0vCX";
@@ -80,98 +83,87 @@ struct Data {
   float data5 = 0;
 };
 
-Data data;
-WidgetTerminal terminal(V10);
-
 void setup() {
-  Serial.begin            (9600);
-  Blynk.begin             (auth, ssid, pass);
-  timeClient.begin        ();
+  Serial.begin(9600);
+  Blynk.begin(auth, ssid, pass);
+  timeClient.begin();
 
-  showDateTime            ();
-  terminal.println        ("Initializing MCU...");
-  terminal.flush          ();
+  showDateTime();
+  terminal.println("Initializing MCU...");
+  terminal.flush();
 
-  ArduinoOTA.setHostname  ("MCU");
-  ArduinoOTA.begin        ();
+  ArduinoOTA.setHostname("MCU");
+  ArduinoOTA.begin();
 
   setupRadio();
 
-  timer_rxtx = millis     ();
-  timer_notif = millis    ();
-  timer_restart = millis  ();
-  timer_IdTwo = millis    ();
-  timer_IdOne = millis    ();
-<<<<<<< HEAD
+  timer_rxtx = millis();
+  timer_notif = millis();
+  timer_restart = millis();
+  timer_IdTwo = millis();
+  timer_IdOne = millis();
 
-  ledRelay.on             ();
-  ledWater.on             ();
-  ledTemp.on              ();
+  ledRelay.on();
+  ledWater.on();
+  ledTemp.on();
 
-=======
-
-  ledRelay.on             ();
-  ledWater.on             ();
-  ledTemp.on              ();
-
->>>>>>> autoreboot
-  showDateTime            ();
-  terminal.println        ("MCU is ready");
-  terminal.flush          ();
+  showDateTime();
+  terminal.println("MCU is ready");
+  terminal.flush();
 }
+
+//================================================
 
 void loop() {
   Blynk.run();
   ArduinoOTA.handle();
   restartMCU();
-  shutRelay();
-  manageBlynkButton();
+
+  waterLevel = data.data1 == 0 ? 0 : TANK_HEIGHT - data.data1;
+  message = getWaterNotification();
+
+  shutRelay(calcedWaterLevel);
+  manageBlynkButton(calcedWaterLevel);
 
   if (millis() - timer_rxtx >= 50) {
     processTXData();
     processRXData();
-    setData();
+    setData(waterLevel);
     timer_rxtx = millis();
   }
 
   if (millis() - timer_notif >= 1000) {
-    if (wh.getNotifyFlag() == 1) {
+    if (notifyFlag == 1) {
         Blynk.notify(message);
     }
     timer_notif = millis();
   }
 
   if (activityRelay == 1) {
-    Blynk.setProperty(V8, "color", ns.GREEN);
+    Blynk.setProperty(V8, "color", GREEN);
   } else {
-    Blynk.setProperty(V8, "color", ns.RED);
+    Blynk.setProperty(V8, "color", RED);
   }
 }
 
-void setIdOneParams() {
-  t1 = data.data2;
-  t2 = data.data3;
-  h1 = data.data4;
-  h2 = data.data5;
-  Blynk.virtualWrite(V0, t1);
-  Blynk.virtualWrite(V1, h1);
-  Blynk.virtualWrite(V2, t2);
-  Blynk.virtualWrite(V3, t2);
-  Blynk.setProperty(V4, "color", ns.GREEN);
-}
+//============================
 
-void setIdTwoParams(){
-  waterLevel = wh.getWaterLvl(data.data1);
-  message = wh.getWaterNotification(waterLevel);
-  Blynk.virtualWrite(V5, wh.getScale(waterLevel));
-  Blynk.virtualWrite(V6, waterLevel);
-  Blynk.setProperty(V9, "color", ns.GREEN);
-}
-
-void setData() {
-  if (data.id != 1) {
+void setData(int waterLevel) {
+  if (data.id == 1) {
+    timer_IdOne = millis();
+    activityChicken = 1;
+    t1 = data.data2;
+    t2 = data.data3;
+    h1 = data.data4;
+    h2 = data.data5;
+    Blynk.virtualWrite(V0, t1);
+    Blynk.virtualWrite(V1, h1);
+    Blynk.virtualWrite(V2, t2);
+    Blynk.virtualWrite(V3, t2);
+    Blynk.setProperty(V4, "color", GREEN);
+  } else {
     if (millis() - timer_IdOne >= 120000) {
-      Blynk.setProperty(V4, "color", ns.RED);
+      Blynk.setProperty(V4, "color", RED);
       Blynk.virtualWrite(V0, 0);
       Blynk.virtualWrite(V1, 0);
       Blynk.virtualWrite(V2, 0);
@@ -179,24 +171,22 @@ void setData() {
       activityChicken = 0;
       timer_IdOne = millis();
     }
-  } else {
-    timer_IdOne = millis();
-    activityChicken = 1;
-    setIdOneParams();
   }
 
-  if (data.id != 2) {
+  if (data.id == 2) {
+    timer_IdTwo = millis();
+    activityWater = 1;
+    Blynk.virtualWrite(V5, getScale());
+    Blynk.virtualWrite(V6, waterLevel);
+    Blynk.setProperty(V9, "color", GREEN);
+  } else {
     if (millis() - timer_IdTwo >= 20000) {
       Blynk.virtualWrite(V5, 0);
       Blynk.virtualWrite(V6, 0);
-      Blynk.setProperty(V9, "color", ns.RED);
+      Blynk.setProperty(V9, "color", RED);
       activityWater = 0;
       timer_IdTwo = millis();
     }
-  } else {
-    timer_IdTwo = millis();
-    activityWater = 1;
-    setIdTwoParams();
   }
 }
 
@@ -204,23 +194,19 @@ void shutRelay() {
   /* отключает реле при включенном насосе по достижении критического уровня +
      отклчает реле при неактивном сенсоре воды
   */
-  if ((waterLevel >= ns.TANK_FULL && compressor == 1) || activityWater == 0) {
+  if ((waterLevel >= TANK_FULL && compressor == 1) || activityWater == 0) {
       compressor = 0;
       pinState = 0;
       Blynk.virtualWrite(V7, LOW);
-      terminal.println("Shut off relay");
   }
-  
 }
 
 void manageBlynkButton() {
-  if (pinState == 1 && compressor == 0 && waterLevel < ns.TANK_FULL) {
+  if (pinState == 1 && compressor == 0 && waterLevel < TANK_FULL) {
       compressor = 1;
-      terminal.println("compressor = 1");
       Blynk.virtualWrite(V7, HIGH);
   } else if (pinState == 0 && compressor == 1) {
       compressor = 0;
-      terminal.println("compressor = 0");
       Blynk.virtualWrite(V7, LOW);
   }
 }
@@ -229,16 +215,85 @@ void processRXData(){
   radio.startListening();
   if (radio.available()) {
      radio.read(&data, sizeof(data));
-     Serial.println("YES");
+     //Serial.println("YES");
   } else {
     data.id = 0;
-    Serial.println("NA");
+    //Serial.println("NA");
   }
 }
 
 void processTXData() {
     radio.stopListening();
     activityRelay = radio.write(&compressor, sizeof(compressor));
+}
+
+float getScale() {
+  float scale = 1;
+  short levelsArray[17] = {146, 143, 135, 129, 124, 116, 110, 102, 97,
+                           89, 82, 75, 70, 68, 61, 56, 47};
+
+  float scalesArray[17] = {10, 9.5, 9, 8.5, 8, 7.5, 7, 6.5, 6,
+                           5.5, 5, 4.5, 4, 3.5, 3, 2.5, 2};
+
+  for (int i = 0; i <= 17 - 1; i++) {
+    if ((waterLevel < levelsArray[i]) && (waterLevel > levelsArray[i + 1])) {
+      return scalesArray[i + 1];
+    } else if (waterLevel == levelsArray[i]) {
+      return scalesArray[i];
+    } else if ((waterLevel > levelsArray[0]) || (waterLevel > levelsArray[1])) {
+      return scalesArray[0];
+    }
+  }
+  return scale;
+}
+
+String getWaterNotification() {
+  String notificationMessage = "";
+  notifyFlag = 0;
+
+  if (compressor == 0) {
+    if ((waterLevel >= TANK_FULL) && (full != 1)) {
+        full = 1;
+        half = 0;
+        empty = 0;
+        notifyFlag = 1;
+        return "!ВОДА! -- Бак полон";
+    } else if (waterLevel == (TANK_FULL - 4)) {
+        full = 0;
+    }
+
+    if ((waterLevel == TANK_HALF) && (half != 1)) {
+        half = 1;
+        notifyFlag = 1;
+        return "!ВОДА! -- Пол бака";
+    }
+
+    if ((waterLevel == TANK_EMPTY) && (empty != 1)) {
+        empty = 1;
+        notifyFlag = 1;
+        return "!ВОДА! -- !НИЗКИЙ УРОВЕНЬ ВОДЫ!";
+    }
+  }
+  return notificationMessage;
+}
+
+BLYNK_WRITE(V7) {
+  pinState = param.asInt();
+}
+
+void setupRadio() {
+  radio.begin             (); //активировать модуль
+  radio.setAutoAck        (1);         //режим подтверждения приёма, 1 вкл 0 выкл
+  radio.setRetries        (1, 15);    //(время между попыткой достучаться, число попыток)
+  radio.enableAckPayload  ();    //разрешить отсылку данных в ответ на входящий сигнал
+  radio.setPayloadSize    (32);     //размер пакета, в байтах
+  radio.setChannel        (0x6b);
+  radio.openWritingPipe   (address[2]);   //мы - труба 0, открываем канал для передачи данных
+  radio.openReadingPipe   (1, address[1]);
+  radio.setPALevel        (RF24_PA_MAX);
+  radio.setDataRate       (RF24_250KBPS);
+  radio.powerUp           (); //начать работу
+  radio.startListening    ();  //не слушаем радиоэфир, мы передатчик
 }
 
 void applyRestart() {
@@ -274,23 +329,4 @@ void showDateTime() {
   timeClient.update();
   String dateTime = timeClient.getFormattedDate();
   terminal.print(dateTime + " ");
-}
-
-BLYNK_WRITE(V7) {
-  pinState = param.asInt();
-}
-
-void setupRadio() {
-  radio.begin             (); //активировать модуль
-  radio.setAutoAck        (1);         //режим подтверждения приёма, 1 вкл 0 выкл
-  radio.setRetries        (1, 15);    //(время между попыткой достучаться, число попыток)
-  radio.enableAckPayload  ();    //разрешить отсылку данных в ответ на входящий сигнал
-  radio.setPayloadSize    (32);     //размер пакета, в байтах
-  radio.setChannel        (0x6b);
-  radio.openWritingPipe   (address[2]);   //мы - труба 0, открываем канал для передачи данных
-  radio.openReadingPipe   (1, address[1]);
-  radio.setPALevel        (RF24_PA_MAX);
-  radio.setDataRate       (RF24_250KBPS);
-  radio.powerUp           (); //начать работу
-  radio.startListening    ();  //не слушаем радиоэфир, мы передатчик
 }
