@@ -189,15 +189,19 @@ void shutRelay() {
       compressor = 0;
       pinState = 0;
       Blynk.virtualWrite(V7, LOW);
+      terminal.println("Shut off relay");
   }
+  
 }
 
 void manageBlynkButton() {
   if (pinState == 1 && compressor == 0 && waterLevel < ns.TANK_FULL) {
       compressor = 1;
+      terminal.println("compressor = 1");
       Blynk.virtualWrite(V7, HIGH);
   } else if (pinState == 0 && compressor == 1) {
       compressor = 0;
+      terminal.println("compressor = 0");
       Blynk.virtualWrite(V7, LOW);
   }
 }
@@ -251,6 +255,10 @@ void showDateTime() {
   timeClient.update();
   String dateTime = timeClient.getFormattedDate();
   terminal.print(dateTime + " ");
+}
+
+BLYNK_WRITE(V7) {
+  pinState = param.asInt();
 }
 
 void setupRadio() {
