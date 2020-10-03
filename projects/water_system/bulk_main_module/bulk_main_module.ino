@@ -83,6 +83,18 @@ struct Data {
   float data5 = 0;
 };
 
+int mapping = 8;
+int scales = 81; //81 дробное значение для шкалы делений воды
+int wlvls = 100;
+
+const int mappingArray[mapping] = {6, 7, 8, 14, 22, 23, 24, 29};
+const int pairsArray[mapping][2] = {{141, 140}, {139, 138}, {137, 136},
+                   {130, 129}, {121, 120}, {119, 118},
+                   {117, 116}, {111, 110}
+                  };
+int wlevelsArray[wlvls][2];
+float scalesArray[scales];
+
 void setup() {
   Serial.begin(9600);
   Blynk.begin(auth, ssid, pass);
@@ -106,6 +118,14 @@ void setup() {
   ledRelay.on();
   ledWater.on();
   ledTemp.on();
+
+  showDateTime();
+  terminal.println("Building data arrays...");
+  terminal.flush();
+  buildWaterDataArrays();
+  showDateTime();
+  terminal.println("Arrays built");
+  terminal.flush();
 
   showDateTime();
   terminal.println("MCU is ready");
@@ -227,26 +247,6 @@ void processTXData() {
     activityRelay = radio.write(&compressor, sizeof(compressor));
 }
 
-float getScale() {
-  float scale = 1;
-  short levelsArray[17] = {146, 143, 135, 129, 124, 116, 110, 102, 97,
-                           89, 82, 75, 70, 68, 61, 56, 47};
-
-  float scalesArray[17] = {10, 9.5, 9, 8.5, 8, 7.5, 7, 6.5, 6,
-                           5.5, 5, 4.5, 4, 3.5, 3, 2.5, 2};
-
-  for (int i = 0; i <= 17 - 1; i++) {
-    if ((waterLevel < levelsArray[i]) && (waterLevel > levelsArray[i + 1])) {
-      return scalesArray[i + 1];
-    } else if (waterLevel == levelsArray[i]) {
-      return scalesArray[i];
-    } else if ((waterLevel > levelsArray[0]) || (waterLevel > levelsArray[1])) {
-      return scalesArray[0];
-    }
-  }
-  return scale;
-}
-
 String getWaterNotification() {
   String notificationMessage = "";
   notifyFlag = 0;
@@ -329,4 +329,49 @@ void showDateTime() {
   timeClient.update();
   String dateTime = timeClient.getFormattedDate();
   terminal.print(dateTime + " ");
+}
+
+void buildWaterDataArrays() {
+  buildScalesArray();
+  buildWLevelsArray();
+}
+
+void buildScalesArray() {
+  for (int i = 0; i < scales; i++) {
+      scale[i] = 10 - (i * 0.1);
+  }
+}
+
+void buildWLevelsArray() {
+  for (int i = 0; i < lvlAmount; i++) {
+      for (int j = 0; j < 2; j++) {
+          if (j % 2 == 0) {
+              nums[i][j] = 147 - i;
+          } else {
+              nums[i][j] = 0;
+          }
+      }
+  }
+
+  for (int i = 0; i < mapping; i++) {
+      for (int j = 0; j < 2; j++) {
+          wlevelsArray[mappingArray[i]][j] = pairsArray[i][j];
+      }
+
+      for (int b = mappingArray[i] + 1; b < wlvls; b++) {
+              wlevelsArray[b][0] -= 1;
+      }
+  }
+}
+
+float getScale() {
+  float scale = 1;
+  for (int i = 0; i < wlvls; i++) {
+      for (int j = 0; j < 2; j++) {
+          if (wlevelsArray[i][j] == waterLevel) {
+            scale = scalesArray[i];
+          }
+      }
+  }
+  return scale;
 }
