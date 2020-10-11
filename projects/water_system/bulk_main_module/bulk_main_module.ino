@@ -63,6 +63,7 @@ int currentMin;
 int currentSec;
 
 int waterLevel;
+float scale;
 int pinState;
 byte compressor;
 String message;
@@ -204,9 +205,10 @@ void setData() {
     if (prevWaterLvl != currentWaterLvl) {
       Serial.println("CHECK");
       prevWaterLvl = currentWaterLvl;
-      Blynk.virtualWrite(V5, getScale(waterLevel));
+      getScale();      
     }
     
+    Blynk.virtualWrite(V5, scale);
     Blynk.virtualWrite(V6, waterLevel);
     Blynk.setProperty(V9, "color", GREEN);
   } else {
@@ -337,16 +339,14 @@ void restartMCU() {
   }
 }
 
-float getScale(int waterLevel) {
-  float scale = 0;
+float getScale() {  
   for (int i = 0; i < SCALES; i++) {
       for (int j = 1; j < 3; j++) {
           if (scalesArray[i][j] == waterLevel) {
              scale = scalesArray[i][0];
           }
 	    }
-    }
-  return scale;
+    }  
 }
 
 void buildScalesArray() {
