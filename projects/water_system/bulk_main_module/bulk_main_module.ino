@@ -25,6 +25,13 @@ RF24 radio              (D4, D2);
 WidgetLED ledRelay      (V8);
 WidgetLED ledWater      (V9);
 WidgetLED ledTemp       (V4);
+
+WidgetLED leftLamp      (V11);
+WidgetLED rightLamp     (V12);
+WidgetLED heater        (V13);
+WidgetLED socket        (V14);
+WidgetLED automation    (V15);
+
 WidgetTerminal terminal (V10);
 
 WiFiUDP ntpUDP;
@@ -68,6 +75,8 @@ int pinState;
 byte compressor;
 String message;
 
+char relayCheck = 0;
+
 /*
   Механизм предотвращение избыточных расчетов делений и отправки уровня воды
 */
@@ -92,7 +101,17 @@ struct Data {
   float data5 = 0; //Hum 2
 };
 
+struct BarnMessage {
+  unsigned char id = 1; // id 1 = синхронизатор, id 0 = данные на вкл/выкл
+  unsigned char leftLamp = 0; //Water data
+  unsigned char rightLamp = 0; //Temper 1
+  unsigned char heater = 0; //Temper 2
+  unsigned char socket = 0; //Hum 1
+  unsigned char automation = 0; //Hum 2
+};
+
 Data data;
+BarnMessage bm;
 
 float scalesArray[SCALES][3];
 
@@ -118,6 +137,12 @@ void setup() {
   ledRelay.on();
   ledWater.on();
   ledTemp.on();
+
+  leftLamp.on();
+  rightLamp.on();
+  heater.on();
+  socket.on();
+  automation.on();
 
   printTerminalMessage("Building scale array...");
   buildScalesArray();
@@ -148,6 +173,7 @@ void loop() {
     processTXData();
     processRXData();
     setData();
+    manageRelayButtons()
     timer_rxtx = millis();
   }
 
@@ -247,8 +273,12 @@ void manageBlynkButton() {
 void processRXData(){
   radio.startListening();
   if (radio.available()) {
-     radio.read(&data, sizeof(data));
-     //Serial.println("YES");
+    if ((bm.id == 1) && (radio.getDynamicPayloadSize() < 7)) {
+       radio.read(&bm, sizeof(bm));
+    } else {
+       radio.read(&data, sizeof(data));
+    }
+   
   } else {
     data.id = 0;
     //Serial.println("NA");
@@ -257,6 +287,10 @@ void processRXData(){
 
 void processTXData() {
     radio.stopListening();
+    if (relayCheck == 1) {
+      radio.write(&bm, sizeof(bm)); 
+      relayCheck == 0;  
+    }    
     activityRelay = radio.write(&compressor, sizeof(compressor));
 }
 
@@ -293,9 +327,7 @@ String getWaterNotification() {
   return notificationMessage;
 }
 
-BLYNK_WRITE(V7) {
-  pinState = param.asInt();
-}
+
 
 void setupRadio() {
   radio.begin             (); //активировать модуль
@@ -403,4 +435,76 @@ void showDateTime() {
   timeClient.update();
   String dateTime = timeClient.getFormattedDate();
   terminal.print(dateTime + " ");
+}
+
+BLYNK_WRITE(V7) {
+  pinState = param.asInt();
+  relayCheck = 1;
+}
+
+BLYNK_WRITE(V16) {
+  bm.leftLamp = param.asInt();  
+  relayCheck = 1;
+}
+
+BLYNK_WRITE(V17) {
+  bm.rightLamp = param.asInt();
+  relayCheck = 1;
+}
+
+BLYNK_WRITE(V18) {
+  bm.heater = param.asInt();
+  relayCheck = 1;
+}
+
+BLYNK_WRITE(V19) {
+  bm.socket = param.asInt();
+  relayCheck = 1;
+}
+
+BLYNK_WRITE(V20) {
+  bm.automation = param.asInt();
+  relayCheck = 1;
+}
+
+void manageRelayButtons() {
+   if (bm.leftLamp == 1) {     
+      Blynk.virtualWrite(V16, HIGH);
+      Blynk.setProperty(V11, "color", GREEN);
+  } else {
+      Blynk.virtualWrite(V16, LOW);
+      Blynk.setProperty(V11, "color", RED);
+  }
+  
+   if (bm.rightLamp == 1) {     
+      Blynk.virtualWrite(V17, HIGH);
+      Blynk.setProperty(V12, "color", GREEN);
+  } else {
+      Blynk.virtualWrite(V16, LOW);
+      Blynk.setProperty(V4, "color", RED);
+  }
+  
+   if (bm.heater == 1) {     
+      Blynk.virtualWrite(V18, HIGH);
+      Blynk.setProperty(V13, "color", GREEN);
+  } else {
+      Blynk.virtualWrite(V18, LOW);
+      Blynk.setProperty(V13, "color", RED);
+  }
+  
+   if (bm.socket == 1) {     
+      Blynk.virtualWrite(V19, HIGH);
+      Blynk.setProperty(V14, "color", GREEN);
+  } else {
+      Blynk.virtualWrite(V19, LOW);
+      Blynk.setProperty(V14, "color", RED);
+  }
+  
+   if (bm.automation == 1) {     
+      Blynk.virtualWrite(V20, HIGH);
+      Blynk.setProperty(V15, "color", GREEN);
+  } else {
+      Blynk.virtualWrite(V20, LOW);
+      Blynk.setProperty(V15, "color", RED);
+  }
 }
