@@ -102,13 +102,14 @@ struct Data {
 };
 
 struct BarnMessage {
-  unsigned char id = 1; // id 1 = синхронизатор, id 0 = данные на вкл/выкл
-  unsigned char leftLamp = 0; //Water data
-  unsigned char rightLamp = 0; //Temper 1
-  unsigned char heater = 0; //Temper 2
-  unsigned char socket = 0; //Hum 1
-  unsigned char automation = 0; //Hum 2
+  unsigned char id = 3; // id 1 = реле, id 2 = сарай, id 3 = синхронизатор
+  unsigned char leftLamp = 0; 
+  unsigned char rightLamp = 0;
+  unsigned char compressor = 0;   
 };
+
+char leftLamp;
+char rightLamp;
 
 Data data;
 BarnMessage bm;
@@ -273,12 +274,11 @@ void manageBlynkButton() {
 void processRXData(){
   radio.startListening();
   if (radio.available()) {
-    if ((bm.id == 1) && (radio.getDynamicPayloadSize() < 7)) {
+    if (radio.getDynamicPayloadSize() < 4) {
        radio.read(&bm, sizeof(bm));
     } else {
        radio.read(&data, sizeof(data));
-    }
-   
+    }   
   } else {
     data.id = 0;
     //Serial.println("NA");
@@ -287,11 +287,19 @@ void processRXData(){
 
 void processTXData() {
     radio.stopListening();
-    if (relayCheck == 1) {
+    if (relayCheck == 1 && bm.id != 3) {
+      bm.id = 2;
+      bm.leftLamp = leftLamp;
+      bm.rightLamp = rightLamp;
       radio.write(&bm, sizeof(bm)); 
-      relayCheck == 0;  
-    }    
-    activityRelay = radio.write(&compressor, sizeof(compressor));
+      relayCheck = 0;  
+    } else if (bm.id == 3) {
+      radio.write(&bm, sizeof(bm));      
+    } else {
+      bm.id = 1;
+      bm.compressor = compressor;
+      activityRelay = radio.write(&compressor, sizeof(compressor));
+    }
 }
 
 String getWaterNotification() {
@@ -438,37 +446,21 @@ void showDateTime() {
 }
 
 BLYNK_WRITE(V7) {
-  pinState = param.asInt();
-  relayCheck = 1;
+  pinState = param.asInt();  
 }
 
 BLYNK_WRITE(V16) {
-  bm.leftLamp = param.asInt();  
-  relayCheck = 1;
+  leftLamp = param.asInt();
+  relayCheck = 1;  
 }
 
 BLYNK_WRITE(V17) {
-  bm.rightLamp = param.asInt();
-  relayCheck = 1;
-}
-
-BLYNK_WRITE(V18) {
-  bm.heater = param.asInt();
-  relayCheck = 1;
-}
-
-BLYNK_WRITE(V19) {
-  bm.socket = param.asInt();
-  relayCheck = 1;
-}
-
-BLYNK_WRITE(V20) {
-  bm.automation = param.asInt();
-  relayCheck = 1;
+  rightLamp = param.asInt();
+  relayCheck = 1; 
 }
 
 void manageRelayButtons() {
-   if (bm.leftLamp == 1) {     
+   if (leftLamp == 1 && bm.id != 3) {     
       Blynk.virtualWrite(V16, HIGH);
       Blynk.setProperty(V11, "color", GREEN);
   } else {
@@ -476,35 +468,11 @@ void manageRelayButtons() {
       Blynk.setProperty(V11, "color", RED);
   }
   
-   if (bm.rightLamp == 1) {     
+   if (rightLamp == 1 && bm.id != 3) {         
       Blynk.virtualWrite(V17, HIGH);
       Blynk.setProperty(V12, "color", GREEN);
   } else {
       Blynk.virtualWrite(V16, LOW);
       Blynk.setProperty(V4, "color", RED);
-  }
-  
-   if (bm.heater == 1) {     
-      Blynk.virtualWrite(V18, HIGH);
-      Blynk.setProperty(V13, "color", GREEN);
-  } else {
-      Blynk.virtualWrite(V18, LOW);
-      Blynk.setProperty(V13, "color", RED);
-  }
-  
-   if (bm.socket == 1) {     
-      Blynk.virtualWrite(V19, HIGH);
-      Blynk.setProperty(V14, "color", GREEN);
-  } else {
-      Blynk.virtualWrite(V19, LOW);
-      Blynk.setProperty(V14, "color", RED);
-  }
-  
-   if (bm.automation == 1) {     
-      Blynk.virtualWrite(V20, HIGH);
-      Blynk.setProperty(V15, "color", GREEN);
-  } else {
-      Blynk.virtualWrite(V20, LOW);
-      Blynk.setProperty(V15, "color", RED);
   }
 }

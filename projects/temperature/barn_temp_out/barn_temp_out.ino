@@ -1,8 +1,5 @@
 #define RELAY_LL 3
 #define RELAY_RL 5
-#define RELAY_H 6
-#define RELAY_S 7
-#define RELAY_A 8
 
 #define DHTPIN1 2
 #define DHTPIN2 4
@@ -15,8 +12,7 @@
 #include "nRF24L01.h"
 #include "RF24.h"
 
-unsigned long timerTX;
-unsigned long timerRX;
+unsigned long timer;
 
 byte address[][6] = {"1Node", "2Node", "3Node", "4Node", "5Node", "6Node"};
 
@@ -44,13 +40,14 @@ struct Data {
 };
 
 struct BarnMessage {
-  unsigned char id = 0; // id 1 = синхронизатор, id 0 = данные на вкл/выкл
-  unsigned char leftLamp = 0; //Water data
-  unsigned char rightLamp = 0; //Temper 1
-  unsigned char heater = 0; //Temper 2
-  unsigned char socket = 0; //Hum 1
-  unsigned char automation = 0; //Hum 2
+  unsigned char id = 0; // id 1 = реле, id 2 = сарай, id 3 = синхронизатор
+  unsigned char leftLamp = 0; 
+  unsigned char rightLamp = 0;
+  unsigned char compressor = 0;  
 };
+
+  unsigned char leftLamp = 0; 
+  unsigned char rightLamp = 0;
 
 Data data;
 BarnMessage bm;
@@ -58,97 +55,66 @@ BarnMessage bm;
 void setup() {
   Serial.begin(9600);
   
-  timerTX = millis();
-  timerRX = millis();
+  timer = millis();
   
   setupRadio();
   dht1.begin();
   dht2.begin();
 
-  pinMode(RELAY_LP, OUTPUT);
-  digitalWrite(RELAY_LP, LOW);
+  pinMode(RELAY_LL, OUTPUT);
+  digitalWrite(RELAY_LL, LOW);
 
   pinMode(RELAY_RL, OUTPUT);
   digitalWrite(RELAY_RL, LOW);
-
-  pinMode(RELAY_H, OUTPUT);
-  digitalWrite(RELAY_H, LOW);
-
-  pinMode(RELAY_S, OUTPUT);
-  digitalWrite(RELAY_S, LOW);
-
-  pinMode(RELAY_A, OUTPUT);
-  digitalWrite(RELAY_A, LOW);
 }
 
-void loop() {
-  if (millis() - timerTX >= 2000) {
+void loop() {  
+  if (millis() - timer >= 200) {
     getDHT();
-    processTXData();    
-    timerTX = millis();
-  }
-
-  if (millis() - timerRX >= 200) {
     processRXData();
-    timerRX = millis();
+    processTXData();    
+    timer = millis();
   }
-
-  processIncomingData();
+  manageRelays();
 }
 
 void processRXData() {
   radio.startListening();
-  if (radio.available() && (radio.getDynamicPayloadSize() > 4)) {    
-     radio.read(&bm, sizeof(bm));    
+  if (radio.available()) {        
+     radio.read(&bm, sizeof(bm));
+     if (bm.id == 3) {
+        bm.id = 2;
+        bm.leftLamp = leftLamp;
+        bm.rightLamp = rightLamp;       
+     } else if (bm.id == 2) {
+        leftLamp = bm.leftLamp;
+        rightLamp = bm.rightLamp;
+     }
   }  
 }
 
 void processTXData() {
   radio.stopListening();
-  if (bm.id = 1 && bm.automation == 1 || bm.automation == 0) {
+  if (bm.id == 3) {
     radio.write(&bm, sizeof(bm));
     bm.id = 0;
-  } 
-  
-  if (bm.id == 0 && bm.automation == 1) {
-    radio.write(&bm, sizeof(bm));
-  } 
-  
-  radio.write(&data, sizeof(data));  
+  } else {
+    radio.write(&data, sizeof(data));  
+  }
 }
 
-void manageRelays() {
-  if (bm.id = 0) {
-    if (bm.leftLamp == 1) {
+void manageRelays() {  
+    if (leftLamp == 1) {
       digitalWrite(RELAY_LL, HIGH);
     } else {
       digitalWrite(RELAY_LL, LOW);
     }
 
-    if (bm.rightLamp == 1) {
+    if (rightLamp == 1) {
       digitalWrite(RELAY_RL, HIGH);
     } else {
       digitalWrite(RELAY_RL, LOW);
-    }
-
-    if (bm.heater == 1) {
-      digitalWrite(RELAY_H, HIGH);
-    } else {
-      digitalWrite(RELAY_H, LOW);
-    }
-
-    if (bm.socket == 1) {
-      digitalWrite(RELAY_S, HIGH);
-    } else {
-      digitalWrite(RELAY_S, LOW);
-    }
-
-    if (bm.automation == 1) {
-      digitalWrite(RELAY_A, HIGH);
-    } else {
-      digitalWrite(RELAY_A, LOW);
-    }
-  }
+    }  
 }
 
 void getDHT() {
@@ -196,7 +162,7 @@ void setupRadio() {
   radio.setChannel(0x6b);
   radio.setPayloadSize(32);     //размер пакета, в байтах
   radio.openWritingPipe(address[1]); 
-  radio.openReadingPipe(2, address[2]);
+  radio.openReadingPipe(1, address[2]);
   radio.setPALevel (RF24_PA_MAX); //уровень мощности передатчика. На выбор RF24_PA_MIN, RF24_PA_LOW, RF24_PA_HIGH, RF24_PA_MAX
   radio.setDataRate (RF24_250KBPS); //скорость обмена. На выбор RF24_2MBPS, RF24_1MBPS, RF24_250KBPS
   radio.powerUp(); //начать работу
