@@ -13,6 +13,7 @@
 #include "RF24.h"
 
 unsigned long timer;
+unsigned long timer_tx;
 
 byte address[][6] = {"1Node", "2Node", "3Node", "4Node", "5Node", "6Node"};
 
@@ -39,23 +40,30 @@ struct Data {
   float data5;
 };
 
-struct BarnMessage {
-  unsigned char id = 0; // id 1 = реле, id 2 = сарай, id 3 = синхронизатор
-  unsigned char leftLamp = 0; 
-  unsigned char rightLamp = 0;
-  unsigned char compressor = 0;  
+struct TXMessage {
+  short id = 2; // id 1 = реле, id 2 = сарай, id 10 = синхронизатор
+  short data1; // левая лампа
+  short data2; // правая лампа
+  short data3; // общий свет
+  short data4; // нагрев
+  short data5; // розетка  
+  short data6; // бесполезная нагрузка от компрессора 
 };
 
-  unsigned char leftLamp = 0; 
-  unsigned char rightLamp = 0;
+  short leftLamp = 0; 
+  short rightLamp = 0;
+  short generalLight = 0;
+  short heater = 0;
+  short socket = 0;   
 
 Data data;
-BarnMessage bm;
+TXMessage TXm;
 
-void setup() {
+void setup() { 
   Serial.begin(9600);
   
   timer = millis();
+  timer_tx = millis();
   
   setupRadio();
   dht1.begin();
@@ -68,11 +76,20 @@ void setup() {
   digitalWrite(RELAY_RL, LOW);
 }
 
-void loop() {  
-  if (millis() - timer >= 200) {
-    getDHT();
+void loop() {
+  if (millis() - timer_tx >= 1507) {
+    getDHT(); 
+    processTXData();
+    timer_tx = millis();
+  }
+  
+  if (millis() - timer >= 100) {        
     processRXData();
-    processTXData();    
+    setData();    
+    Serial.print("Id: ");
+    Serial.println(TXm.id);
+    Serial.println(TXm.data1);
+    Serial.println(data.id);    
     timer = millis();
   }
   manageRelays();
@@ -81,25 +98,34 @@ void loop() {
 void processRXData() {
   radio.startListening();
   if (radio.available()) {        
-     radio.read(&bm, sizeof(bm));
-     if (bm.id == 3) {
-        bm.id = 2;
-        bm.leftLamp = leftLamp;
-        bm.rightLamp = rightLamp;       
-     } else if (bm.id == 2) {
-        leftLamp = bm.leftLamp;
-        rightLamp = bm.rightLamp;
-     }
+     radio.read(&TXm, sizeof(TXm));     
   }  
 }
 
 void processTXData() {
   radio.stopListening();
-  if (bm.id == 3) {
-    radio.write(&bm, sizeof(bm));
-    bm.id = 0;
-  } else {
-    radio.write(&data, sizeof(data));  
+  radio.write(&data, sizeof(data)); 
+  
+  if (data.id != 1) {
+    data.id = 1;
+  }
+}
+
+// Обработчик входящих данных для формирования ответа-синхронизатора, либо выставление значений для реле
+void setData() {
+  if (TXm.id == 10) { 
+    data.id = 10;   
+    data.data1 = leftLamp;
+    data.data2 = rightLamp;
+    data.data3 = generalLight;
+    data.data4 = heater;
+    data.data5 = socket;
+  } else if (TXm.id == 2) {
+    leftLamp = TXm.data1;
+    rightLamp = TXm.data2;
+    generalLight = TXm.data3;
+    heater = TXm.data4;
+    socket = TXm.data5;
   }
 }
 
@@ -110,11 +136,26 @@ void manageRelays() {
       digitalWrite(RELAY_LL, LOW);
     }
 
-    if (rightLamp == 1) {
+    if (rightLamp != 0) {
       digitalWrite(RELAY_RL, HIGH);
     } else {
       digitalWrite(RELAY_RL, LOW);
     }  
+}
+
+void setupRadio() {
+  radio.begin(); //активировать модуль
+  radio.setAutoAck(1);         //режим подтверждения приёма, 1 вкл 0 выкл
+  radio.setRetries(1, 15);    //(время между попыткой достучаться, число попыток)
+  radio.enableAckPayload();    //разрешить отсылку данных в ответ на входящий сигнал
+  radio.setChannel(0x6b);
+  radio.setPayloadSize(32);     //размер пакета, в байтах
+  radio.openWritingPipe(address[1]); 
+  radio.openReadingPipe(1, address[2]);
+  radio.setPALevel (RF24_PA_MAX); //уровень мощности передатчика. На выбор RF24_PA_MIN, RF24_PA_LOW, RF24_PA_HIGH, RF24_PA_MAX
+  radio.setDataRate (RF24_250KBPS); //скорость обмена. На выбор RF24_2MBPS, RF24_1MBPS, RF24_250KBPS
+  radio.powerUp(); //начать работу
+  radio.startListening();  //не слушаем радиоэфир, мы передатчик
 }
 
 void getDHT() {
@@ -152,19 +193,3 @@ void getDHT() {
     data.temperature2 = 0;
   }
   */
-
-
-void setupRadio() {
-  radio.begin(); //активировать модуль
-  radio.setAutoAck(1);         //режим подтверждения приёма, 1 вкл 0 выкл
-  radio.setRetries(1, 15);    //(время между попыткой достучаться, число попыток)
-  radio.enableAckPayload();    //разрешить отсылку данных в ответ на входящий сигнал
-  radio.setChannel(0x6b);
-  radio.setPayloadSize(32);     //размер пакета, в байтах
-  radio.openWritingPipe(address[1]); 
-  radio.openReadingPipe(1, address[2]);
-  radio.setPALevel (RF24_PA_MAX); //уровень мощности передатчика. На выбор RF24_PA_MIN, RF24_PA_LOW, RF24_PA_HIGH, RF24_PA_MAX
-  radio.setDataRate (RF24_250KBPS); //скорость обмена. На выбор RF24_2MBPS, RF24_1MBPS, RF24_250KBPS
-  radio.powerUp(); //начать работу
-  radio.stopListening();  //не слушаем радиоэфир, мы передатчик
-}

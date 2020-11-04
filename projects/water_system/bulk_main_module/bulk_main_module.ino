@@ -1,8 +1,6 @@
 #include <NTPClient.h>
 #include <WiFiUdp.h>
 
-#include <ArduinoOTA.h>
-
 #include <ESP8266WiFi.h>
 #include <BlynkSimpleEsp8266.h>
 
@@ -44,7 +42,7 @@ byte notifyFlag = 0;
 
 byte activityChicken    = 1;  // состояние датчика в курятнике
 byte activityWater      = 1;  // состояние датчика воды
-byte activityRelay      = 1;  // состояние реле
+  // состояние реле
 
 byte scheduledReboot    = 1;  // запланированная перезагрузка MCU (вкл/выкл)
 byte conditionalReboot  = 1;  // условная перезагрузка в зависимости от состояния модулей (вкл/выкл)
@@ -64,10 +62,15 @@ unsigned long timer_restart;
 unsigned long timer_IdTwo;
 unsigned long timer_IdOne;
 unsigned long timer_notif_get;
+unsigned long syncTimer;
+unsigned long timer_relay;
+unsigned long timer_relay_send;
 
 int currentHour;
 int currentMin;
 int currentSec;
+
+int notifyPeriod = 5000; // период отправки уведомлений об уровне воды
 
 int waterLevel;
 float scale;
@@ -75,13 +78,24 @@ int pinState;
 byte compressor;
 String message;
 
-char relayCheck = 0;
+short relayHealthcheck = 0;
+short syncStatus = 0;
 
 /*
   Механизм предотвращение избыточных расчетов делений и отправки уровня воды
 */
 byte prevWaterLvl = 0; //Предыдущий уровень воды
 byte currentWaterLvl = -1; //Текущий уровень воды
+
+struct TXMessage {
+  short id = 10; // id 1 = реле, id 2 = сарай, id 10 = синхронизатор
+  short data1; // левая лампа
+  short data2; // правая лампа
+  short data3; // общий свет
+  short data4; // нагрев
+  short data5; // розетка  
+  short data6; // бесполезная нагрузка от компрессора 
+};
 
 struct TempData {
   float t1 = 0;
@@ -90,10 +104,8 @@ struct TempData {
   float h2 = 0;
 };
 
-TempData tempData;
-
 struct Data {
-  short id = 0; // id 1 = модуль температуры в сарае, id 2 = модуль воды
+  short id = 0; // id 1 = модуль температуры в сарае, id 2 = модуль воды,id 10 = синхронизатор, 3 = реле хелсчек
   short data1 = 0; //Water data
   float data2 = 0; //Temper 1
   float data3 = 0; //Temper 2
@@ -101,18 +113,9 @@ struct Data {
   float data5 = 0; //Hum 2
 };
 
-struct BarnMessage {
-  unsigned char id = 3; // id 1 = реле, id 2 = сарай, id 3 = синхронизатор
-  unsigned char leftLamp = 0; 
-  unsigned char rightLamp = 0;
-  unsigned char compressor = 0;   
-};
-
-char leftLamp;
-char rightLamp;
-
 Data data;
-BarnMessage bm;
+TempData tempData;
+TXMessage TXm;
 
 float scalesArray[SCALES][3];
 
@@ -123,9 +126,6 @@ void setup() {
 
   printTerminalMessage("Initializing MCU...");
 
-  ArduinoOTA.setHostname("MCU");
-  ArduinoOTA.begin();
-
   setupRadio();
 
   timer_rxtx = millis();
@@ -134,6 +134,9 @@ void setup() {
   timer_IdTwo = millis();
   timer_IdOne = millis();
   timer_notif_get = millis();
+  syncTimer = millis();
+  timer_relay = millis();
+  timer_relay_send = millis();
 
   ledRelay.on();
   ledWater.on();
@@ -157,39 +160,47 @@ void setup() {
 
 //================================================
 
-void loop() {
-  Blynk.run();
-  ArduinoOTA.handle();
+void loop() {  
+  Blynk.run(); 
   restartMCU();
+  
+  manageBlynkButtons();
 
-  if (millis() - timer_notif_get >= 1000){
+  notifyPeriod = compressor == 0 ? 60000 : 5000;
+
+  if (millis() - timer_notif_get >= notifyPeriod){
       message = getWaterNotification();
+      if (notifyFlag == 1) {
+        Blynk.notify(message);
+      }
       timer_notif_get = millis();
   }
-
-  shutRelay();
-  manageBlynkButton();
-
-  if (millis() - timer_rxtx >= 50) {
-    processTXData();
-    processRXData();
-    setData();
-    manageRelayButtons()
+  
+  shutRelay();  
+  relayHealthcheck = 0;
+  
+  if (millis() - timer_rxtx >= 50) {  
+    processRXData(); 
+    setData();  
+    processTXData();        
+    messenger();
     timer_rxtx = millis();
   }
+}
 
-  if (millis() - timer_notif >= 1000) {
-    if (notifyFlag == 1) {
-        Blynk.notify(message);
-    }
-    timer_notif = millis();
-  }
-
-  if (activityRelay == 1) {
-    Blynk.setProperty(V8, "color", GREEN);
-  } else {
-    Blynk.setProperty(V8, "color", RED);
-  }
+void messenger() {
+  Serial.print("SyncStatus: ");
+  Serial.println(String(syncStatus));
+  Serial.print("Txm.id: ");
+  Serial.println(String(TXm.id));
+  Serial.print("Txm.data1: ");
+  Serial.println(TXm.data1);
+  Serial.print("Txm.data2: ");
+  Serial.println(TXm.data2);
+  Serial.print("data.id: ");
+  Serial.println(data.id);
+  Serial.println(TXm.data6);
+  Serial.println("****"); 
 }
 
 //============================
@@ -222,8 +233,7 @@ void setData() {
   }
 
   if (data.id == 2) {
-    waterLevel = data.data1 == 0 ? 0 : TANK_HEIGHT - data.data1;
-
+    waterLevel = data.data1 == 0 ? 0 : TANK_HEIGHT - data.data1;   
     timer_IdTwo = millis();
 
     activityWater = 1;
@@ -247,6 +257,33 @@ void setData() {
       timer_IdTwo = millis();
     }
   }
+  
+  if (data.id == 10 && syncStatus == 0) {
+      syncStatus = 1;    
+      TXm.id = 2; // флаг окончания синхронизации и вход в штатный режим
+      TXm.data1 = data.data1; // левая лампа
+      TXm.data2 = data.data2; // правая лампа
+      TXm.data3 = data.data3; // общий свет
+      TXm.data4 = data.data4; // нагрев
+      TXm.data5 = data.data5; // розетка
+  } 
+
+  if (syncStatus == 0) {
+    if (millis() - syncTimer >= 500) {
+      TXm.id = 10;
+    }
+  }
+
+  if (data.id == 3) {
+    timer_relay = millis();
+    relayHealthcheck = 1;
+    Blynk.setProperty(V8, "color", GREEN);
+  } else {
+    if (millis() - timer_relay >= 10000) {
+      Blynk.setProperty(V8, "color", RED);
+      timer_relay = millis();
+    }
+  }
 }
 
 void shutRelay() {
@@ -261,7 +298,67 @@ void shutRelay() {
   }
 }
 
-void manageBlynkButton() {
+void processRXData(){
+  radio.startListening();
+  if (radio.available()) {
+     radio.read(&data, sizeof(data));     
+  } 
+}
+
+void processTXData() {
+    radio.stopListening();
+    TXm.data6 = compressor;  
+    
+    if (TXm.id != 10 && (millis() - timer_relay_send >= 200)) {
+        TXm.id = 2;
+        timer_relay_send = millis();
+    }
+    
+    radio.write(&TXm, sizeof(TXm));
+     
+    if (TXm.id != 1) {
+      TXm.id = 1;
+    }   
+}
+
+/*
+  Служебные функции
+*/
+
+void printTerminalMessage(String message) {
+  showDateTime();
+  terminal.println(message);
+  terminal.flush();
+}
+
+void showDateTime() {
+  timeClient.update();
+  String dateTime = timeClient.getFormattedDate();
+  terminal.print(dateTime + " ");
+}
+
+BLYNK_WRITE(V7) {
+  pinState = param.asInt();  
+}
+
+BLYNK_WRITE(V16) {
+  if (TXm.id != 10) {
+    TXm.id = 2;  
+    TXm.data1 = param.asInt();
+   manageButtons();
+  } 
+}  
+ 
+
+BLYNK_WRITE(V17) {
+  if (TXm.id != 10) {
+    TXm.id = 2;
+    TXm.data2 = param.asInt();
+    manageButtons();
+  }
+}
+
+void manageBlynkButtons() {
   if (pinState == 1 && compressor == 0 && waterLevel < TANK_FULL) {
       compressor = 1;
       Blynk.virtualWrite(V7, HIGH);
@@ -271,35 +368,23 @@ void manageBlynkButton() {
   }
 }
 
-void processRXData(){
-  radio.startListening();
-  if (radio.available()) {
-    if (radio.getDynamicPayloadSize() < 4) {
-       radio.read(&bm, sizeof(bm));
-    } else {
-       radio.read(&data, sizeof(data));
-    }   
-  } else {
-    data.id = 0;
-    //Serial.println("NA");
-  }
-}
+void manageButtons() {
 
-void processTXData() {
-    radio.stopListening();
-    if (relayCheck == 1 && bm.id != 3) {
-      bm.id = 2;
-      bm.leftLamp = leftLamp;
-      bm.rightLamp = rightLamp;
-      radio.write(&bm, sizeof(bm)); 
-      relayCheck = 0;  
-    } else if (bm.id == 3) {
-      radio.write(&bm, sizeof(bm));      
-    } else {
-      bm.id = 1;
-      bm.compressor = compressor;
-      activityRelay = radio.write(&compressor, sizeof(compressor));
-    }
+  if (TXm.data1 != 0) {     
+      Blynk.virtualWrite(V16, HIGH);
+      Blynk.setProperty(V11, "color", GREEN);
+  } else {
+      Blynk.virtualWrite(V16, LOW);
+      Blynk.setProperty(V11, "color", RED);
+  }
+  
+   if (TXm.data2 != 0) {         
+      Blynk.virtualWrite(V17, HIGH);
+      Blynk.setProperty(V12, "color", GREEN);
+  } else {
+      Blynk.virtualWrite(V17, LOW);
+      Blynk.setProperty(V12, "color", RED);
+  }
 }
 
 String getWaterNotification() {
@@ -335,23 +420,6 @@ String getWaterNotification() {
   return notificationMessage;
 }
 
-
-
-void setupRadio() {
-  radio.begin             (); //активировать модуль
-  radio.setAutoAck        (1);         //режим подтверждения приёма, 1 вкл 0 выкл
-  radio.setRetries        (1, 15);    //(время между попыткой достучаться, число попыток)
-  radio.enableAckPayload  ();    //разрешить отсылку данных в ответ на входящий сигнал
-  radio.setPayloadSize    (32);     //размер пакета, в байтах
-  radio.setChannel        (0x6b);
-  radio.openWritingPipe   (address[2]);   //мы - труба 0, открываем канал для передачи данных
-  radio.openReadingPipe   (1, address[1]);
-  radio.setPALevel        (RF24_PA_MAX);
-  radio.setDataRate       (RF24_250KBPS);
-  radio.powerUp           (); //начать работу
-  radio.startListening    ();  //не слушаем радиоэфир, мы передатчик
-}
-
 void applyRestart() {
   printTerminalMessage("Restarting MCU...");
   radio.powerDown();
@@ -369,7 +437,7 @@ void restartMCU() {
   }
 
   if (conditionalReboot == 1) {
-    if (activityChicken == 0 && activityWater == 0 && activityRelay == 0) {
+    if (activityChicken == 0 && activityWater == 0 && relayHealthcheck == 0) {
       if (millis() - timer_restart >= 150000) {
         applyRestart();
       }
@@ -379,13 +447,13 @@ void restartMCU() {
   }
 }
 
-float getScale() {  
+void getScale() {  
   for (int i = 0; i < SCALES; i++) {
       for (int j = 1; j < 3; j++) {
           if (scalesArray[i][j] == waterLevel) {
              scale = scalesArray[i][0];
           }
-	    }
+      }
     }  
 }
 
@@ -402,21 +470,21 @@ void buildScalesArray() {
 
   for (int i = 0; i < wlvlsLength; i++) {
     for (int j = 0; j < 2; j++) {
-	  if (j % 2 == 0) {
-	      wlevelsArray[i][j] = TANK_FULL - i;
-	  } else {
-	      wlevelsArray[i][j] = 0;
-	  }
+    if (j % 2 == 0) {
+        wlevelsArray[i][j] = TANK_FULL - i;
+    } else {
+        wlevelsArray[i][j] = 0;
+    }
     }
   }
 
   for (int i = 0; i < mapping; i++) {
     for (int j = 1, num = wlevelsArray[mappingArray[i]][0] - 1; j < 2; j++) {
-	    wlevelsArray[mappingArray[i]][j] = num;
+      wlevelsArray[mappingArray[i]][j] = num;
     }
 
-    for (int b = mappingArray[i] + 1; b < wlvlsLength; b++)	{
-	    wlevelsArray[b][0] -= 1;
+    for (int b = mappingArray[i] + 1; b < wlvlsLength; b++) {
+      wlevelsArray[b][0] -= 1;
     }
   }
 
@@ -429,50 +497,17 @@ void buildScalesArray() {
    scalesArray[0][2] = 149;
 }
 
-/*
-  Служебные функции
-*/
-
-void printTerminalMessage(String message) {
-  showDateTime();
-  terminal.println(message);
-  terminal.flush();
-}
-
-void showDateTime() {
-  timeClient.update();
-  String dateTime = timeClient.getFormattedDate();
-  terminal.print(dateTime + " ");
-}
-
-BLYNK_WRITE(V7) {
-  pinState = param.asInt();  
-}
-
-BLYNK_WRITE(V16) {
-  leftLamp = param.asInt();
-  relayCheck = 1;  
-}
-
-BLYNK_WRITE(V17) {
-  rightLamp = param.asInt();
-  relayCheck = 1; 
-}
-
-void manageRelayButtons() {
-   if (leftLamp == 1 && bm.id != 3) {     
-      Blynk.virtualWrite(V16, HIGH);
-      Blynk.setProperty(V11, "color", GREEN);
-  } else {
-      Blynk.virtualWrite(V16, LOW);
-      Blynk.setProperty(V11, "color", RED);
-  }
-  
-   if (rightLamp == 1 && bm.id != 3) {         
-      Blynk.virtualWrite(V17, HIGH);
-      Blynk.setProperty(V12, "color", GREEN);
-  } else {
-      Blynk.virtualWrite(V16, LOW);
-      Blynk.setProperty(V4, "color", RED);
-  }
+void setupRadio() {
+  radio.begin             (); //активировать модуль
+  radio.setAutoAck        (1);         //режим подтверждения приёма, 1 вкл 0 выкл
+  radio.setRetries        (1, 15);    //(время между попыткой достучаться, число попыток)
+  radio.enableAckPayload  ();    //разрешить отсылку данных в ответ на входящий сигнал
+  radio.setPayloadSize    (32);     //размер пакета, в байтах
+  radio.setChannel        (0x6b);
+  radio.openWritingPipe   (address[2]);   //мы - труба 0, открываем канал для передачи данных
+  radio.openReadingPipe   (1, address[1]);
+  radio.setPALevel        (RF24_PA_MAX);
+  radio.setDataRate       (RF24_250KBPS);
+  radio.powerUp           (); //начать работу
+  radio.startListening    ();  //не слушаем радиоэфир, мы передатчик
 }

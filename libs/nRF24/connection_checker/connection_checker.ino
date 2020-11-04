@@ -10,12 +10,12 @@
 
 #include <printf.h>
 
-#define CE_PIN  D4
-#define CSN_PIN D2
+#define CE_PIN  9
+#define CSN_PIN 10
 
 const byte thisSlaveAddress[5] = {'R','x','A','A','A'};
 
-RF24 radio(9, 10);
+RF24 radio(CE_PIN, CSN_PIN);
 
 char dataReceived[10]; // this must match dataToSend in the TX
 bool newData = false;

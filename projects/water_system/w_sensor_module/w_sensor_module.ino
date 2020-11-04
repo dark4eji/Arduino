@@ -36,13 +36,14 @@ void setup(){
 }
 
 void loop() {
-  if (millis() - timer >= 1000) {
+  if (millis() - timer >= 1000) {    
     short val = processSensor();
     data.data1 = val;
+    
     if (data.data1 > 300) {
       data.data1 = -1;
     }
-
+    
     Serial.println(data.data1);
     sendFlag = radio.write(&data, sizeof(data));
     Serial.println(sendFlag);
