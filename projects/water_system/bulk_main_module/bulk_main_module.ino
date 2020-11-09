@@ -164,7 +164,8 @@ void loop() {
   Blynk.run(); 
   restartMCU();
   
-  manageBlynkButtons();
+  manageBarnButtons();
+  manageMainRelayButton();
 
   notifyPeriod = compressor == 0 ? 60000 : 5000;
 
@@ -345,7 +346,7 @@ BLYNK_WRITE(V16) {
   if (TXm.id != 10) {
     TXm.id = 2;  
     TXm.data1 = param.asInt();
-   manageButtons();
+   manageBarnButtons();
   } 
 }  
  
@@ -354,11 +355,11 @@ BLYNK_WRITE(V17) {
   if (TXm.id != 10) {
     TXm.id = 2;
     TXm.data2 = param.asInt();
-    manageButtons();
+    manageBarnButtons();
   }
 }
 
-void manageBlynkButtons() {
+void manageMainRelayButton() {
   if (pinState == 1 && compressor == 0 && waterLevel < TANK_FULL) {
       compressor = 1;
       Blynk.virtualWrite(V7, HIGH);
@@ -368,7 +369,7 @@ void manageBlynkButtons() {
   }
 }
 
-void manageButtons() {
+void manageBarnButtons() {
 
   if (TXm.data1 != 0) {     
       Blynk.virtualWrite(V16, HIGH);
