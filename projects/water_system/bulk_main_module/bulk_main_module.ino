@@ -66,6 +66,8 @@ unsigned long syncTimer;
 unsigned long timer_relay;
 unsigned long timer_relay_send;
 
+float x = 0;
+
 int currentHour;
 int currentMin;
 int currentSec;
@@ -202,6 +204,7 @@ void messenger() {
   Serial.println(data.id);
   Serial.println(TXm.data6);
   Serial.println("****"); 
+  Serial.println(millis()); 
 }
 
 //============================
@@ -258,19 +261,24 @@ void setData() {
       timer_IdTwo = millis();
     }
   }
-  
+
   if (data.id == 10 && syncStatus == 0) {
       syncStatus = 1;    
-      TXm.id = 2; // флаг окончания синхронизации и вход в штатный режим
+      TXm.id = 0; // флаг окончания синхронизации и вход в штатный режим
       TXm.data1 = data.data1; // левая лампа
       TXm.data2 = data.data2; // правая лампа
+      Serial.print("****************************************************************************");
+      Serial.println(data.data1);
+      Serial.println(data.data2);
+      Serial.print("****************************************************************************");
       TXm.data3 = data.data3; // общий свет
       TXm.data4 = data.data4; // нагрев
       TXm.data5 = data.data5; // розетка
+      data.id = 0;      
   } 
 
   if (syncStatus == 0) {
-    if (millis() - syncTimer >= 500) {
+    if (millis() - syncTimer >= 15000) {
       TXm.id = 10;
       syncTimer = millis();
     }
@@ -311,7 +319,7 @@ void processTXData() {
     radio.stopListening();
     TXm.data6 = compressor;  
     
-    if (TXm.id != 10 && (millis() - timer_relay_send >= 2000)) {
+    if ((TXm.id != 10) && (syncStatus == 1) && (millis() - timer_relay_send >= 2000)) {
         TXm.id = 2;
         timer_relay_send = millis();
     }
@@ -372,7 +380,7 @@ void manageMainRelayButton() {
 
 void manageBarnButtons() {
 
-  if (TXm.data1 != 0) {     
+  if (TXm.data1 == 1) {     
       Blynk.virtualWrite(V16, HIGH);
       Blynk.setProperty(V11, "color", GREEN);
   } else {
@@ -380,7 +388,7 @@ void manageBarnButtons() {
       Blynk.setProperty(V11, "color", RED);
   }
   
-   if (TXm.data2 != 0) {         
+   if (TXm.data2 == 1) {         
       Blynk.virtualWrite(V17, HIGH);
       Blynk.setProperty(V12, "color", GREEN);
   } else {

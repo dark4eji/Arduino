@@ -14,6 +14,10 @@
 
 unsigned long timer;
 unsigned long timer_tx;
+unsigned long sync_timer;
+
+int syncChecker = 0;
+int dhtChecker = 0;
 
 byte address[][6] = {"1Node", "2Node", "3Node", "4Node", "5Node", "6Node"};
 
@@ -53,17 +57,20 @@ struct TXMessage {
   short leftLamp = 0; 
   short rightLamp = 0;
   short generalLight = 0;
-  short heater = 0;
+  short heater = 0; 
   short socket = 0;   
 
 Data data;
 TXMessage TXm;
+
+int timerValue = 100;
 
 void setup() { 
   Serial.begin(9600);
   
   timer = millis();
   timer_tx = millis();
+  sync_timer = millis();
   
   setupRadio();
   dht1.begin();
@@ -77,9 +84,13 @@ void setup() {
 }
 
 void loop() {
-  if (millis() - timer_tx >= 1507) {
-    getDHT(); 
+  if (millis() - timer_tx >= 1507) {   
     processTXData();
+    
+    if (dhtChecker = 1) {
+      getDHT(); 
+    }
+    
     timer_tx = millis();
   }
   
@@ -110,21 +121,36 @@ void processTXData() {
 }
 
 // Обработчик входящих данных для формирования ответа-синхронизатора, либо выставление значений для реле
-void setData() {
+void setData() { 
+  syncChecker = 0; 
   if (TXm.id == 10) { 
+    syncChecker = 1;
+    dhtChecker = 0; 
     data.id = 10;   
     data.data1 = leftLamp;
     data.data2 = rightLamp;
     data.data3 = generalLight;
     data.data4 = heater;
     data.data5 = socket;
-  } else if (TXm.id == 2) {
+       
+  }
+
+  if (syncChecker == 1) {
+    sync_timer = millis();
+  } else if ((syncChecker == 0) && (millis() - sync_timer >= 30000) 
+                                && TXm.id == 2) { 
+    dhtChecker = 1;                                  
     leftLamp = TXm.data1;
     rightLamp = TXm.data2;
     generalLight = TXm.data3;
     heater = TXm.data4;
-    socket = TXm.data5;
+    socket = TXm.data5;    
   }
+  
+   Serial.print("leftLamp: ");
+   Serial.println(leftLamp); 
+   Serial.print("rightLamp: ");
+   Serial.println(rightLamp); 
    Serial.print("TXm.id: ");
    Serial.println(TXm.id); 
    TXm.id = 0;  
