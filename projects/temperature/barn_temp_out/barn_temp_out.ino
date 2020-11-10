@@ -85,10 +85,8 @@ void loop() {
   
   if (millis() - timer >= 100) {        
     processRXData();
-    setData();    
-    Serial.print("Id: ");
-    Serial.println(TXm.id);
-    Serial.println(TXm.data1);
+    setData();
+    Serial.print("data.id: ");
     Serial.println(data.id);    
     timer = millis();
   }
@@ -127,6 +125,9 @@ void setData() {
     heater = TXm.data4;
     socket = TXm.data5;
   }
+   Serial.print("TXm.id: ");
+   Serial.println(TXm.id); 
+   TXm.id = 0;  
 }
 
 void manageRelays() {  
@@ -155,12 +156,12 @@ void setupRadio() {
   radio.setPALevel (RF24_PA_MAX); //уровень мощности передатчика. На выбор RF24_PA_MIN, RF24_PA_LOW, RF24_PA_HIGH, RF24_PA_MAX
   radio.setDataRate (RF24_250KBPS); //скорость обмена. На выбор RF24_2MBPS, RF24_1MBPS, RF24_250KBPS
   radio.powerUp(); //начать работу
-  radio.startListening();  //не слушаем радиоэфир, мы передатчик
+  radio.stopListening();  //не слушаем радиоэфир, мы передатчик
 }
 
 void getDHT() {
   data.data2 = dht1.readTemperature() - 1;
-  data.data3 = dht2.readTemperature();
+  data.data3 = dht2.readTemperature() - 1;
   data.data4 = dht1.readHumidity();
   data.data5 = dht2.readHumidity();
 

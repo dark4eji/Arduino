@@ -272,6 +272,7 @@ void setData() {
   if (syncStatus == 0) {
     if (millis() - syncTimer >= 500) {
       TXm.id = 10;
+      syncTimer = millis();
     }
   }
 
@@ -310,7 +311,7 @@ void processTXData() {
     radio.stopListening();
     TXm.data6 = compressor;  
     
-    if (TXm.id != 10 && (millis() - timer_relay_send >= 200)) {
+    if (TXm.id != 10 && (millis() - timer_relay_send >= 2000)) {
         TXm.id = 2;
         timer_relay_send = millis();
     }
