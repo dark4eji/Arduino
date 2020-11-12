@@ -17,7 +17,7 @@ unsigned long timer_tx;
 unsigned long sync_timer;
 
 int syncChecker = 0;
-int dhtChecker = 0;
+int dhtChecker = 1;
 
 byte address[][6] = {"1Node", "2Node", "3Node", "4Node", "5Node", "6Node"};
 
@@ -84,7 +84,7 @@ void setup() {
 }
 
 void loop() {
-  if (millis() - timer_tx >= 1507) {   
+  if (millis() - timer_tx >= 550) {   
     processTXData();
     
     if (dhtChecker = 1) {
@@ -137,7 +137,7 @@ void setData() {
 
   if (syncChecker == 1) {
     sync_timer = millis();
-  } else if ((syncChecker == 0) && (millis() - sync_timer >= 30000) 
+  } else if ((syncChecker == 0) && (millis() - sync_timer >= 5000) 
                                 && TXm.id == 2) { 
     dhtChecker = 1;                                  
     leftLamp = TXm.data1;

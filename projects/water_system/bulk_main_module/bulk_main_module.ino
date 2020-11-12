@@ -267,10 +267,10 @@ void setData() {
       TXm.id = 0; // флаг окончания синхронизации и вход в штатный режим
       TXm.data1 = data.data1; // левая лампа
       TXm.data2 = data.data2; // правая лампа
-      Serial.print("****************************************************************************");
+      Serial.println("****************************************************************************");
       Serial.println(data.data1);
       Serial.println(data.data2);
-      Serial.print("****************************************************************************");
+      Serial.println("****************************************************************************");
       TXm.data3 = data.data3; // общий свет
       TXm.data4 = data.data4; // нагрев
       TXm.data5 = data.data5; // розетка
@@ -278,7 +278,7 @@ void setData() {
   } 
 
   if (syncStatus == 0) {
-    if (millis() - syncTimer >= 15000) {
+    if (millis() - syncTimer >= 50) {
       TXm.id = 10;
       syncTimer = millis();
     }
