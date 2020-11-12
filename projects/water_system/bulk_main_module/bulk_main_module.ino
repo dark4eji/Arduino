@@ -65,6 +65,7 @@ unsigned long timer_notif_get;
 unsigned long syncTimer;
 unsigned long timer_relay;
 unsigned long timer_relay_send;
+unsigned long timer_buttons;
 
 float x = 0;
 
@@ -139,6 +140,7 @@ void setup() {
   syncTimer = millis();
   timer_relay = millis();
   timer_relay_send = millis();
+  timer_buttons = millis();
 
   ledRelay.on();
   ledWater.on();
@@ -165,9 +167,12 @@ void setup() {
 void loop() {  
   Blynk.run(); 
   restartMCU();
-  
-  manageBarnButtons();
-  manageMainRelayButton();
+
+  if (millis() - timer_buttons >= 510) {
+    manageBarnButtons();
+    manageMainRelayButton();
+    timer_buttons = millis();
+  }    
 
   notifyPeriod = compressor == 0 ? 60000 : 5000;
 
@@ -178,11 +183,11 @@ void loop() {
       }
       timer_notif_get = millis();
   }
-  
-  shutRelay();  
+     
   relayHealthcheck = 0;
   
-  if (millis() - timer_rxtx >= 50) {  
+  if (millis() - timer_rxtx >= 50) { 
+    shutRelay();  
     processRXData(); 
     setData();  
     processTXData();        
@@ -331,22 +336,6 @@ void processTXData() {
     }   
 }
 
-/*
-  Служебные функции
-*/
-
-void printTerminalMessage(String message) {
-  showDateTime();
-  terminal.println(message);
-  terminal.flush();
-}
-
-void showDateTime() {
-  timeClient.update();
-  String dateTime = timeClient.getFormattedDate();
-  terminal.print(dateTime + " ");
-}
-
 BLYNK_WRITE(V7) {
   pinState = param.asInt();  
 }
@@ -357,8 +346,7 @@ BLYNK_WRITE(V16) {
     TXm.data1 = param.asInt();
    manageBarnButtons();
   } 
-}  
- 
+}   
 
 BLYNK_WRITE(V17) {
   if (TXm.id != 10) {
@@ -397,37 +385,21 @@ void manageBarnButtons() {
   }
 }
 
-String getWaterNotification() {
-  String notificationMessage = "";
-  notifyFlag = 0;
 
-    if ((waterLevel >= TANK_FULL) && (full != 1)) {
-        full = 1;
-        notifyFlag = 1;
-        return "!ВОДА! -- Бак полон";
-    } else if (waterLevel == (TANK_FULL - 4)) {
-        full = 0;
-    }
+/*
+  Служебные функции
+*/
 
-    if ((waterLevel == TANK_HALF) && (half != 1)) {
-        half = 1;
-        notifyFlag = 1;
-        return "!ВОДА! -- Пол бака";
-    } else if (waterLevel == (TANK_HALF - 4)) {
-        half = 0;
-    } else if ((waterLevel == (TANK_HALF + 4)) && (half == 1)) {
-        half = 0;
-    }
+void printTerminalMessage(String message) {
+  showDateTime();
+  terminal.println(message);
+  terminal.flush();
+}
 
-    if ((waterLevel == TANK_EMPTY) && (empty != 1)) {
-        empty = 1;
-        notifyFlag = 1;
-        return "!ВОДА! -- !НИЗКИЙ УРОВЕНЬ ВОДЫ!";
-    } else if ((waterLevel == (TANK_EMPTY + 4)) && (empty == 1)) {
-        empty = 0;
-    }
-
-  return notificationMessage;
+void showDateTime() {
+  timeClient.update();
+  String dateTime = timeClient.getFormattedDate();
+  terminal.print(dateTime + " ");
 }
 
 void applyRestart() {
@@ -505,6 +477,39 @@ void buildScalesArray() {
      }
    }
    scalesArray[0][2] = 149;
+}
+
+String getWaterNotification() {
+  String notificationMessage = "";
+  notifyFlag = 0;
+
+    if ((waterLevel >= TANK_FULL) && (full != 1)) {
+        full = 1;
+        notifyFlag = 1;
+        return "!ВОДА! -- Бак полон";
+    } else if (waterLevel == (TANK_FULL - 4)) {
+        full = 0;
+    }
+
+    if ((waterLevel == TANK_HALF) && (half != 1)) {
+        half = 1;
+        notifyFlag = 1;
+        return "!ВОДА! -- Пол бака";
+    } else if (waterLevel == (TANK_HALF - 4)) {
+        half = 0;
+    } else if ((waterLevel == (TANK_HALF + 4)) && (half == 1)) {
+        half = 0;
+    }
+
+    if ((waterLevel == TANK_EMPTY) && (empty != 1)) {
+        empty = 1;
+        notifyFlag = 1;
+        return "!ВОДА! -- !НИЗКИЙ УРОВЕНЬ ВОДЫ!";
+    } else if ((waterLevel == (TANK_EMPTY + 4)) && (empty == 1)) {
+        empty = 0;
+    }
+
+  return notificationMessage;
 }
 
 void setupRadio() {
