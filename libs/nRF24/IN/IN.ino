@@ -16,9 +16,9 @@ void setup() {
 
 void loop() {
   // put your main code here, to run repeatedly: 
-    if (radio.available()) {
+    
       radio.read(&x, sizeof(x));     
-    } 
+  
 
     Serial.println(x);
 }
@@ -29,9 +29,9 @@ void setupRadio() {
   radio.setRetries        (1, 15);    //(время между попыткой достучаться, число попыток)
   radio.enableAckPayload  ();    //разрешить отсылку данных в ответ на входящий сигнал
   radio.setPayloadSize    (32);     //размер пакета, в байтах
-  radio.setChannel        (0x60);
-  radio.openWritingPipe   (address[2]);   //мы - труба 0, открываем канал для передачи данных
-  radio.openReadingPipe   (1, address[1]);
+  radio.setChannel        (0x5f);
+  radio.openWritingPipe   (address[3]);   //мы - труба 0, открываем канал для передачи данных
+  radio.openReadingPipe   (1, address[4]);
   radio.setPALevel        (RF24_PA_MAX);
   radio.setDataRate       (RF24_250KBPS);
   radio.powerUp           (); //начать работу

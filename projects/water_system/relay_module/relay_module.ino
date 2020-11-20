@@ -29,11 +29,11 @@ struct TXMessage {
 
 struct Data {
   short id = 3;
-  short data1;
-  float data2;
-  float data3;
-  float data4;
-  float data5;
+  short data1 = 0;
+  float data2 = 0;
+  float data3 = 0;
+  float data4 = 0;
+  float data5 = 0;
 };
 
 Data data;
@@ -52,42 +52,38 @@ void setup(){
   timer_healthcheck = millis();
 }
 
-void loop() {
-  if (millis() - timer_general >= 20) {     
-    processRXData();  
-    timer_general = millis();  
-  }
-
-  if (millis() - timer_healthcheck >= 2003) { 
+void loop() {       
+  
+  processRXData();  
+    
+  if (millis() - timer_healthcheck >= 2049) { 
     processTXData();    
     timer_healthcheck = millis();
   }  
   
-    if (TXm.data6 == 1) {
-      digitalWrite(RELAY, HIGH);
-    } else {
-      digitalWrite(RELAY, LOW);
-    } 
+  if (TXm.data6 == 1) {
+    digitalWrite(RELAY, HIGH);
+  } else {
+    digitalWrite(RELAY, LOW);
+  } 
        
     Serial.println(TXm.data6);    
 }
 
-void processRXData() {
-  radio.startListening();
+void processRXData() {  
   if (radio.available()) {
       radio.read(&TXm, sizeof(TXm));            
       timer_ttl = millis();
-    } else {
-      if (millis() - timer_ttl >= 10000) {
-        TXm.data6 = 0;
-        timer_ttl = millis();
-      }
+    } else if (millis() - timer_ttl >= 20000) {  
+      TXm.data6 = 0;
+      timer_ttl = millis();     
     }
 }
 
 void processTXData() {
  radio.stopListening();
  radio.write(&data, sizeof(data));
+ radio.startListening();
 }
 
 void setupRadio() {

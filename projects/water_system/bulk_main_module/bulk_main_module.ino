@@ -29,6 +29,7 @@ WidgetLED rightLamp     (V12);
 WidgetLED heater        (V13);
 WidgetLED socket        (V14);
 WidgetLED automation    (V15);
+WidgetLED syncLED        (V23);
 
 WidgetTerminal terminal (V10);
 
@@ -63,11 +64,10 @@ unsigned long timer_IdTwo;
 unsigned long timer_IdOne;
 unsigned long timer_notif_get;
 unsigned long syncTimer;
-unsigned long timer_relay;
-unsigned long timer_relay_send;
+unsigned long timer_IdThree;
+unsigned long timer_barn_relay_send;
 unsigned long timer_buttons;
-
-float x = 0;
+unsigned long timer_restar_init;
 
 int currentHour;
 int currentMin;
@@ -77,12 +77,12 @@ int notifyPeriod = 5000; // период отправки уведомлений
 
 int waterLevel;
 float scale;
-int pinState;
 byte compressor;
 String message;
 
 short relayHealthcheck = 0;
 short syncStatus = 0;
+short updateFlag = 0;
 
 /*
   Механизм предотвращение избыточных расчетов делений и отправки уровня воды
@@ -138,9 +138,10 @@ void setup() {
   timer_IdOne = millis();
   timer_notif_get = millis();
   syncTimer = millis();
-  timer_relay = millis();
-  timer_relay_send = millis();
+  timer_IdThree = millis();
+  timer_barn_relay_send = millis();
   timer_buttons = millis();
+  timer_restar_init = millis();
 
   ledRelay.on();
   ledWater.on();
@@ -151,7 +152,8 @@ void setup() {
   heater.on();
   socket.on();
   automation.on();
-
+  syncLED.on();
+  
   printTerminalMessage("Building scale array...");
   buildScalesArray();
   if (scalesArray[0][0] == 11) {
@@ -160,18 +162,26 @@ void setup() {
   } else {
     printTerminalMessage("Error: [0][0] != 11");
   }
+
+  manageBarnButtons();
 }
 
 //================================================
 
 void loop() {  
-  Blynk.run(); 
-  restartMCU();
-
-  if (millis() - timer_buttons >= 510) {
+  Blynk.run();
+  
+  if (millis() - timer_restar_init >= 2000) {
+    restartMCU();
+    timer_restar_init = millis();
+  } 
+  
+  if (updateFlag == 1) {
     manageBarnButtons();
-    manageMainRelayButton();
-    timer_buttons = millis();
+  }
+
+  if (millis() - timer_buttons >= 100) {    
+      
   }    
 
   notifyPeriod = compressor == 0 ? 60000 : 5000;
@@ -183,17 +193,16 @@ void loop() {
       }
       timer_notif_get = millis();
   }
-     
-  relayHealthcheck = 0;
+  
+  processRXData(); 
+  setRXData();  
   
   if (millis() - timer_rxtx >= 50) { 
-    shutRelay();  
-    processRXData(); 
-    setData();  
+    shutRelay();    
     processTXData();        
     messenger();
     timer_rxtx = millis();
-  }
+  }  
 }
 
 void messenger() {
@@ -214,107 +223,123 @@ void messenger() {
 
 //============================
 
-void setData() {
-  if (data.id == 1) {
-    timer_IdOne = millis();
-    activityChicken = 1;
-
-    tempData.t1 = data.data2;
-    tempData.h1 = data.data4;
-    tempData.t2 = data.data3;
-    tempData.h2 = data.data5;
-
-    Blynk.virtualWrite(V0, tempData.t1); //Temper 1
-    Blynk.virtualWrite(V1, tempData.h1); //Hum 1
-    Blynk.virtualWrite(V2, tempData.t2); //Temper 2
-    Blynk.virtualWrite(V3, tempData.h2); //Hum 2
-    Blynk.setProperty(V4, "color", GREEN);
-  } else {
-    if (millis() - timer_IdOne >= 120000) {
-      Blynk.setProperty(V4, "color", RED);
-      Blynk.virtualWrite(V0, 0);
-      Blynk.virtualWrite(V1, 0);
-      Blynk.virtualWrite(V2, 0);
-      Blynk.virtualWrite(V3, 0);
-      activityChicken = 0;
-      timer_IdOne = millis();
-    }
-  }
-
-  if (data.id == 2) {
-    waterLevel = data.data1 == 0 ? 0 : TANK_HEIGHT - data.data1;   
-    timer_IdTwo = millis();
-
-    activityWater = 1;
-    currentWaterLvl = waterLevel;
-
-    if (prevWaterLvl != currentWaterLvl) {
-      Serial.println("CHECK");
-      prevWaterLvl = currentWaterLvl;
-      getScale();      
-    }
+void setRXData() {
+  
+  switch (data.id) {
     
-    Blynk.virtualWrite(V5, scale);
-    Blynk.virtualWrite(V6, waterLevel);
-    Blynk.setProperty(V9, "color", GREEN);
-  } else {
-    if (millis() - timer_IdTwo >= 20000) {
-      Blynk.virtualWrite(V5, 0);
-      Blynk.virtualWrite(V6, 0);
-      Blynk.setProperty(V9, "color", RED);
-      activityWater = 0;
-      timer_IdTwo = millis();
-    }
+    case 1:
+        timer_IdOne = millis();
+        activityChicken = 1;
+  
+        tempData.t1 = data.data2;
+        tempData.h1 = data.data4;
+        tempData.t2 = data.data3;
+        tempData.h2 = data.data5;
+  
+        Blynk.virtualWrite(V0, tempData.t1); //Temper 1
+        Blynk.virtualWrite(V1, tempData.h1); //Hum 1
+        Blynk.virtualWrite(V2, tempData.t2); //Temper 2
+        Blynk.virtualWrite(V3, tempData.h2); //Hum 2
+        Blynk.setProperty(V4, "color", GREEN);  
+        checkInactivity(); 
+        Serial.println("ID 1 PRINT");
+        break; 
+        
+    case 2:
+       timer_IdTwo = millis();
+       waterLevel = data.data1 == 0 ? 0 : TANK_HEIGHT - data.data1;        
+  
+       activityWater = 1;
+       currentWaterLvl = waterLevel;
+  
+        if (prevWaterLvl != currentWaterLvl) {
+         Serial.println("CHECK");
+         prevWaterLvl = currentWaterLvl;
+         getScale();
+         Blynk.virtualWrite(V5, scale);      
+        }      
+       
+       Blynk.virtualWrite(V6, waterLevel);
+       Blynk.setProperty(V9, "color", GREEN);
+       checkInactivity(); 
+       Serial.println("ID 2 PRINT");
+       break; 
+         
+    case 3:
+       timer_IdThree = millis();
+       relayHealthcheck = 1;
+       Blynk.setProperty(V8, "color", GREEN);
+       checkInactivity();
+       Serial.println("ID 3 PRINT");
+       break;
+
+    case 10:
+      if (syncStatus == 0) {
+       updateFlag = 1;
+       syncStatus = 1;    
+       TXm.id = 0; // флаг окончания синхронизации и вход в штатный режим
+       TXm.data1 = data.data1; // левая лампа
+       TXm.data2 = data.data2; // правая лампа
+       Serial.println("****************************************************************************");
+       Serial.println(data.data1);
+       Serial.println(data.data2);
+       Serial.println("****************************************************************************");
+       TXm.data3 = data.data3; // общий свет
+       TXm.data4 = data.data4; // нагрев
+       TXm.data5 = data.data5; // розетка
+       data.id = 0;
+       checkInactivity(); 
+       break;
+       Serial.println("ID 10 SYNC PRINT");
+      }
+      Serial.println("ID 10 NOSYNC PRINT");
+      checkInactivity();
+      break;
+         
+    default:
+      Serial.println("DEFAULT");
+      checkInactivity();    
   }
 
-  if (data.id == 10 && syncStatus == 0) {
-      syncStatus = 1;    
-      TXm.id = 0; // флаг окончания синхронизации и вход в штатный режим
-      TXm.data1 = data.data1; // левая лампа
-      TXm.data2 = data.data2; // правая лампа
-      Serial.println("****************************************************************************");
-      Serial.println(data.data1);
-      Serial.println(data.data2);
-      Serial.println("****************************************************************************");
-      TXm.data3 = data.data3; // общий свет
-      TXm.data4 = data.data4; // нагрев
-      TXm.data5 = data.data5; // розетка
-      data.id = 0;      
-  } 
+  checkSyncStatus();
+}
 
+void checkInactivity() {
+  if (millis() - timer_IdOne >= 30000 && activityChicken != 0) {  
+    Blynk.setProperty(V4, "color", RED);
+    Blynk.virtualWrite(V0, 0);
+    Blynk.virtualWrite(V1, 0);
+    Blynk.virtualWrite(V2, 0);
+    Blynk.virtualWrite(V3, 0);
+    activityChicken = 0;
+    timer_IdOne = millis();    
+  }
+
+  if (millis() - timer_IdTwo >= 20000 && activityWater != 0) {   
+    Blynk.virtualWrite(V5, 0);
+    Blynk.virtualWrite(V6, 0);
+    Blynk.setProperty(V9, "color", RED);
+    activityWater = 0;
+    timer_IdTwo = millis();     
+  }
+
+  if (millis() - timer_IdThree >= 12000 && relayHealthcheck != 0) {
+      Blynk.setProperty(V8, "color", RED);
+      relayHealthcheck = 0;
+      timer_IdThree = millis();      
+  }    
+}
+
+void checkSyncStatus() {  
   if (syncStatus == 0) {
-    if (millis() - syncTimer >= 50) {
+    if (millis() - syncTimer >= 1100) {
       TXm.id = 10;
       syncTimer = millis();
     }
   }
-
-  if (data.id == 3) {
-    timer_relay = millis();
-    relayHealthcheck = 1;
-    Blynk.setProperty(V8, "color", GREEN);
-  } else {
-    if (millis() - timer_relay >= 10000) {
-      Blynk.setProperty(V8, "color", RED);
-      timer_relay = millis();
-    }
-  }
 }
 
-void shutRelay() {
-  /*
-    отключает реле при включенном насосе по достижении критического уровня +
-    отключает реле при неактивном сенсоре воды
-  */
-  if ((waterLevel >= TANK_FULL && compressor == 1) || activityWater == 0) {
-      compressor = 0;
-      pinState = 0;
-      Blynk.virtualWrite(V7, LOW);
-  }
-}
-
-void processRXData(){
-  radio.startListening();
+void processRXData(){  
   if (radio.available()) {
      radio.read(&data, sizeof(data));     
   } 
@@ -324,50 +349,92 @@ void processTXData() {
     radio.stopListening();
     TXm.data6 = compressor;  
     
-    if ((TXm.id != 10) && (syncStatus == 1) && (millis() - timer_relay_send >= 2000)) {
+    if ((TXm.id != 10) && (syncStatus == 1) && (millis() - timer_barn_relay_send >= 2000)) {
         TXm.id = 2;
-        timer_relay_send = millis();
+        timer_barn_relay_send = millis();
     }
     
     radio.write(&TXm, sizeof(TXm));
      
     if (TXm.id != 1) {
       TXm.id = 1;
-    }   
+    } 
+    radio.startListening();  
 }
 
 BLYNK_WRITE(V7) {
-  pinState = param.asInt();  
+  compressor = param.asInt();
+  manageMainRelayButton();   
+  processTXData();
 }
 
 BLYNK_WRITE(V16) {
-  if (TXm.id != 10) {
+  if (syncStatus == 1) {
     TXm.id = 2;  
-    TXm.data1 = param.asInt();
-   manageBarnButtons();
-  } 
+    TXm.data1 = param.asInt();    
+    processTXData(); 
+    manageDataOne();    
+  }  
 }   
 
 BLYNK_WRITE(V17) {
-  if (TXm.id != 10) {
+  if (syncStatus == 1) {
     TXm.id = 2;
     TXm.data2 = param.asInt();
-    manageBarnButtons();
+    processTXData();
+    manageDataTwo();        
+  }
+}
+
+BLYNK_WRITE(V18) {
+  if (syncStatus == 1) {
+    TXm.id = 2;  
+    TXm.data3 = param.asInt();
+    processTXData();  
+    manageDataThree();
+  } 
+}   
+
+BLYNK_WRITE(V19) {
+  if (syncStatus == 1) {
+    TXm.id = 2;
+    TXm.data4 = param.asInt();
+    processTXData(); 
+    manageDataFour();       
+  }
+}
+
+BLYNK_WRITE(V20) {
+  if (syncStatus == 1) {
+    TXm.id = 2;
+    TXm.data5 = param.asInt();
+    processTXData(); 
+    manageDataFive();      
   }
 }
 
 void manageMainRelayButton() {
-  if (pinState == 1 && compressor == 0 && waterLevel < TANK_FULL) {
-      compressor = 1;
+  if (compressor == 1 && waterLevel < TANK_FULL) {      
       Blynk.virtualWrite(V7, HIGH);
-  } else if (pinState == 0 && compressor == 1) {
-      compressor = 0;
-      Blynk.virtualWrite(V7, LOW);
+  } else {
+    compressor = 0;       
+    Blynk.virtualWrite(V7, LOW);
   }
 }
 
-void manageBarnButtons() {
 
+void shutRelay() {
+  /*
+    отключает реле при включенном насосе по достижении критического уровня +
+    отключает реле при неактивном сенсоре воды
+  */
+  if (((waterLevel >= TANK_FULL) && (compressor == 1)) || activityWater == 0) {
+      compressor = 0;     
+      Blynk.virtualWrite(V7, LOW);     
+  }
+}
+
+void manageDataOne() {
   if (TXm.data1 == 1) {     
       Blynk.virtualWrite(V16, HIGH);
       Blynk.setProperty(V11, "color", GREEN);
@@ -375,7 +442,9 @@ void manageBarnButtons() {
       Blynk.virtualWrite(V16, LOW);
       Blynk.setProperty(V11, "color", RED);
   }
-  
+}
+
+void manageDataTwo() {
    if (TXm.data2 == 1) {         
       Blynk.virtualWrite(V17, HIGH);
       Blynk.setProperty(V12, "color", GREEN);
@@ -385,6 +454,51 @@ void manageBarnButtons() {
   }
 }
 
+void manageDataThree() {
+  if (TXm.data3 == 1) {     
+      Blynk.virtualWrite(V18, HIGH);
+      Blynk.setProperty(V13, "color", GREEN);
+  } else {
+      Blynk.virtualWrite(V18, LOW);
+      Blynk.setProperty(V13, "color", RED);
+  }
+}
+
+void manageDataFour() {
+   if (TXm.data4 == 1) {         
+      Blynk.virtualWrite(V19, HIGH);
+      Blynk.setProperty(V14, "color", GREEN);
+  } else {
+      Blynk.virtualWrite(V19, LOW);
+      Blynk.setProperty(V14, "color", RED);
+  }
+}
+
+void manageDataFive() {
+  if (TXm.data5 == 1) {         
+      Blynk.virtualWrite(V20, HIGH);
+      Blynk.setProperty(V15, "color", GREEN);
+  } else {
+      Blynk.virtualWrite(V20, LOW);
+      Blynk.setProperty(V15, "color", RED);
+  }
+}
+
+void manageBarnButtons() {  
+  if (syncStatus == 1) {
+    Blynk.setProperty(V23, "color", GREEN);
+  } else {
+    Blynk.setProperty(V23, "color", RED);
+  }
+  
+  void manageDataOne();
+  void manageDataTwo();
+  void manageDataThree();
+  void manageDataFour();
+  void manageDataFive();
+
+  updateFlag = 0;
+} 
 
 /*
   Служебные функции
