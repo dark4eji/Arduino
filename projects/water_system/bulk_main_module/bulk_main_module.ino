@@ -91,13 +91,13 @@ byte prevWaterLvl = 0; //Предыдущий уровень воды
 byte currentWaterLvl = -1; //Текущий уровень воды
 
 struct TXMessage {
-  short id = 10; // id 1 = реле, id 2 = сарай, id 10 = синхронизатор
+  short id = 10; // id 2 = сарай, id 10 = синхронизатор
   short data1; // левая лампа
   short data2; // правая лампа
   short data3; // общий свет
   short data4; // нагрев
   short data5; // розетка  
-  short data6; // бесполезная нагрузка от компрессора 
+  short data6; // состояние компрессора 
 };
 
 struct TempData {
@@ -171,7 +171,7 @@ void setup() {
 void loop() {  
   Blynk.run();
   
-  if (millis() - timer_restar_init >= 2000) {
+  if (millis() - timer_restar_init >= 10) {
     restartMCU();
     timer_restar_init = millis();
   } 
@@ -180,11 +180,7 @@ void loop() {
     manageBarnButtons();
   }
 
-  if (millis() - timer_buttons >= 100) {    
-      
-  }    
-
-  notifyPeriod = compressor == 0 ? 60000 : 5000;
+  notifyPeriod = compressor == 0 ? 15000 : 5000;
 
   if (millis() - timer_notif_get >= notifyPeriod){
       message = getWaterNotification();
@@ -250,9 +246,10 @@ void setRXData() {
        waterLevel = data.data1 == 0 ? 0 : TANK_HEIGHT - data.data1;        
   
        activityWater = 1;
+       
        currentWaterLvl = waterLevel;
-  
-        if (prevWaterLvl != currentWaterLvl) {
+
+       if (prevWaterLvl != currentWaterLvl ) {
          Serial.println("CHECK");
          prevWaterLvl = currentWaterLvl;
          getScale();
@@ -355,10 +352,7 @@ void processTXData() {
     }
     
     radio.write(&TXm, sizeof(TXm));
-     
-    if (TXm.id != 1) {
-      TXm.id = 1;
-    } 
+    
     radio.startListening();  
 }
 

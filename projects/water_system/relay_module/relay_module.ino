@@ -74,7 +74,7 @@ void processRXData() {
   if (radio.available()) {
       radio.read(&TXm, sizeof(TXm));            
       timer_ttl = millis();
-    } else if (millis() - timer_ttl >= 20000) {  
+    } else if (millis() - timer_ttl >= 60000) {  
       TXm.data6 = 0;
       timer_ttl = millis();     
     }

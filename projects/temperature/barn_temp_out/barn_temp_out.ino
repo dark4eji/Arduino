@@ -32,7 +32,7 @@ DHT dht2(DHTPIN2, DHT11); //Инициация датчика
 struct Data {
   short id = 1;
   short data1;
-  float data2;
+  float data2; 
   float data3;
   float data4;
   float data5;
@@ -71,6 +71,14 @@ void setup() {
 }
 
 void loop() {
+  float voltage = (float)(analogRead(0) * 5.0) / 1024;
+
+  if (voltage < 1) {
+    data.data1 = 1;
+  } else {
+    data.data1 = 0;
+  }
+  
   if (millis() - timer_tx >= 3000) {   
     processTXData();
     
